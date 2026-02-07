@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Mickey Mouse</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #1a1a2e; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 14px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 18px;
+            border-radius: 20px;
+            pointer-events: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Click and drag to rotate | Scroll to zoom</div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ── Scene setup ──────────────────────────────────────────
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 1.5, 0);
+        controls.update();
+
+        // ── Lighting ─────────────────────────────────────────────
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        keyLight.position.set(5, 8, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+        fillLight.position.set(-5, 3, -3);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xffffcc, 0.4);
+        rimLight.position.set(0, 2, -6);
+        scene.add(rimLight);
+
+        // ── Materials ────────────────────────────────────────────
+        const blackMat = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            roughness: 0.4,
+            metalness: 0.05
+        });
+
+        const skinMat = new THREE.MeshStandardMaterial({
+            color: 0xf5d5b8,
+            roughness: 0.6,
+            metalness: 0.0
+        });
+
+        const whiteMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.5,
+            metalness: 0.0
+        });
+
+        const redMat = new THREE.MeshStandardMaterial({
+            color: 0xdd1111,
+            roughness: 0.5,
+            metalness: 0.0
+        });
+
+        const yellowMat = new THREE.MeshStandardMaterial({
+            color: 0xf5c842,
+            roughness: 0.5,
+            metalness: 0.0
+        });
+
+        const noseMat = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+
+        const eyeBlackMat = new THREE.MeshStandardMaterial({
+            color: 0x050505,
+            roughness: 0.2,
+            metalness: 0.0
+        });
+
+        const buttonMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.3,
+            metalness: 0.0
+        });
+
+        // ── Mickey Mouse Group ───────────────────────────────────
+        const mickey = new THREE.Group();
+
+        // ── Head ─────────────────────────────────────────────────
+        const headGroup = new THREE.Group();
+
+        // Main head sphere (black)
+        const headGeo = new THREE.SphereGeometry(1, 64, 64);
+        const head = new THREE.Mesh(headGeo, blackMat);
+        head.castShadow = true;
+        headGroup.add(head);
+
+        // Ears
+        const earGeo = new THREE.SphereGeometry(0.55, 48, 48);
+
+        const leftEar = new THREE.Mesh(earGeo, blackMat);
+        leftEar.position.set(-0.75, 0.75, 0);
+        leftEar.castShadow = true;
+        headGroup.add(leftEar);
+
+        const rightEar = new THREE.Mesh(earGeo, blackMat);
+        rightEar.position.set(0.75, 0.75, 0);
+        rightEar.castShadow = true;
+        headGroup.add(rightEar);
+
+        // Face area (skin-colored front)
+        const faceGeo = new THREE.SphereGeometry(0.68, 48, 48);
+        const face = new THREE.Mesh(faceGeo, skinMat);
+        face.position.set(0, -0.18, 0.6);
+        face.scale.set(1, 0.85, 0.7);
+        headGroup.add(face);
+
+        // Muzzle / snout area
+        const muzzleGeo = new THREE.SphereGeometry(0.45, 48, 48);
+        const muzzle = new THREE.Mesh(muzzleGeo, skinMat);
+        muzzle.position.set(0, -0.35, 0.78);
+        muzzle.scale.set(1.1, 0.7, 0.8);
+        headGroup.add(muzzle);
+
+        // Nose (black oval)
+        const noseGeo = new THREE.SphereGeometry(0.14, 32, 32);
+        const nose = new THREE.Mesh(noseGeo, noseMat);
+        nose.position.set(0, -0.2, 1.18);
+        nose.scale.set(1.3, 0.9, 0.8);
+        headGroup.add(nose);
+
+        // Eyes (white ovals)
+        const eyeWhiteGeo = new THREE.SphereGeometry(0.18, 32, 32);
+
+        const leftEyeWhite = new THREE.Mesh(eyeWhiteGeo, whiteMat);
+        leftEyeWhite.position.set(-0.25, 0.1, 0.9);
+        leftEyeWhite.scale.set(0.75, 1.1, 0.5);
+        headGroup.add(leftEyeWhite);
+
+        const rightEyeWhite = new THREE.Mesh(eyeWhiteGeo, whiteMat);
+        rightEyeWhite.position.set(0.25, 0.1, 0.9);
+        rightEyeWhite.scale.set(0.75, 1.1, 0.5);
+        headGroup.add(rightEyeWhite);
+
+        // Pupils
+        const pupilGeo = new THREE.SphereGeometry(0.09, 24, 24);
+
+        const leftPupil = new THREE.Mesh(pupilGeo, eyeBlackMat);
+        leftPupil.position.set(-0.2, 0.08, 1.05);
+        leftPupil.scale.set(0.8, 1.0, 0.5);
+        headGroup.add(leftPupil);
+
+        const rightPupil = new THREE.Mesh(pupilGeo, eyeBlackMat);
+        rightPupil.position.set(0.2, 0.08, 1.05);
+        rightPupil.scale.set(0.8, 1.0, 0.5);
+        headGroup.add(rightPupil);
+
+        // Mouth (curved line using a torus segment)
+        const mouthGeo = new THREE.TorusGeometry(0.22, 0.02, 12, 24, Math.PI);
+        const mouthMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+        const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+        mouth.position.set(0, -0.45, 1.02);
+        mouth.rotation.x = 0.1;
+        headGroup.add(mouth);
+
+        headGroup.position.set(0, 3.6, 0);
+        mickey.add(headGroup);
+
+        // ── Body ─────────────────────────────────────────────────
+        const bodyGroup = new THREE.Group();
+
+        // Torso (black upper)
+        const torsoGeo = new THREE.SphereGeometry(0.75, 48, 48);
+        const torso = new THREE.Mesh(torsoGeo, blackMat);
+        torso.scale.set(1, 1.1, 0.85);
+        torso.castShadow = true;
+        bodyGroup.add(torso);
+
+        // Red shorts / pants
+        const shortsGeo = new THREE.SphereGeometry(0.78, 48, 48, 0, Math.PI * 2, Math.PI * 0.45, Math.PI * 0.55);
+        const shorts = new THREE.Mesh(shortsGeo, redMat);
+        shorts.position.set(0, -0.1, 0);
+        shorts.scale.set(1, 1.0, 0.85);
+        shorts.castShadow = true;
+        bodyGroup.add(shorts);
+
+        // White buttons on shorts
+        const buttonGeo = new THREE.SphereGeometry(0.06, 16, 16);
+
+        const button1 = new THREE.Mesh(buttonGeo, buttonMat);
+        button1.position.set(-0.18, -0.15, 0.7);
+        bodyGroup.add(button1);
+
+        const button2 = new THREE.Mesh(buttonGeo, buttonMat);
+        button2.position.set(0.18, -0.15, 0.7);
+        bodyGroup.add(button2);
+
+        bodyGroup.position.set(0, 2.1, 0);
+        mickey.add(bodyGroup);
+
+        // ── Arms ─────────────────────────────────────────────────
+        // Left arm
+        const armGroup = (side) => {
+            const group = new THREE.Group();
+            const dir = side === 'left' ? -1 : 1;
+
+            // Upper arm
+            const armGeo = new THREE.CylinderGeometry(0.15, 0.13, 0.8, 24);
+            const arm = new THREE.Mesh(armGeo, blackMat);
+            arm.rotation.z = dir * 0.6;
+            arm.position.set(dir * 0.5, -0.1, 0);
+            arm.castShadow = true;
+            group.add(arm);
+
+            // Forearm
+            const forearmGeo = new THREE.CylinderGeometry(0.13, 0.12, 0.7, 24);
+            const forearm = new THREE.Mesh(forearmGeo, skinMat);
+            forearm.rotation.z = dir * 0.8;
+            forearm.position.set(dir * 1.0, -0.45, 0);
+            forearm.castShadow = true;
+            group.add(forearm);
+
+            // Gloved hand (white sphere)
+            const handGeo = new THREE.SphereGeometry(0.22, 32, 32);
+            const hand = new THREE.Mesh(handGeo, whiteMat);
+            hand.position.set(dir * 1.4, -0.75, 0);
+            hand.castShadow = true;
+            group.add(hand);
+
+            // Fingers (3 bumps)
+            for (let i = -1; i <= 1; i++) {
+                const fingerGeo = new THREE.SphereGeometry(0.08, 16, 16);
+                const finger = new THREE.Mesh(fingerGeo, whiteMat);
+                finger.position.set(dir * 1.55, -0.75 + i * 0.1, i * 0.08);
+                group.add(finger);
+            }
+
+            // Thumb
+            const thumbGeo = new THREE.SphereGeometry(0.08, 16, 16);
+            const thumb = new THREE.Mesh(thumbGeo, whiteMat);
+            thumb.position.set(dir * 1.25, -0.9, 0.15);
+            group.add(thumb);
+
+            return group;
+        };
+
+        const leftArm = armGroup('left');
+        leftArm.position.set(-0.3, 2.4, 0);
+        mickey.add(leftArm);
+
+        const rightArm = armGroup('right');
+        rightArm.position.set(0.3, 2.4, 0);
+        mickey.add(rightArm);
+
+        // ── Legs ─────────────────────────────────────────────────
+        const legGroup = (side) => {
+            const group = new THREE.Group();
+            const dir = side === 'left' ? -1 : 1;
+
+            // Upper leg
+            const legGeo = new THREE.CylinderGeometry(0.17, 0.14, 0.7, 24);
+            const leg = new THREE.Mesh(legGeo, blackMat);
+            leg.position.set(dir * 0.25, -0.35, 0);
+            leg.castShadow = true;
+            group.add(leg);
+
+            // Lower leg (skin colored)
+            const lowerLegGeo = new THREE.CylinderGeometry(0.14, 0.12, 0.5, 24);
+            const lowerLeg = new THREE.Mesh(lowerLegGeo, skinMat);
+            lowerLeg.position.set(dir * 0.25, -0.8, 0);
+            lowerLeg.castShadow = true;
+            group.add(lowerLeg);
+
+            // Shoe (yellow, large oval)
+            const shoeGeo = new THREE.SphereGeometry(0.28, 32, 32);
+            const shoe = new THREE.Mesh(shoeGeo, yellowMat);
+            shoe.position.set(dir * 0.25, -1.15, 0.15);
+            shoe.scale.set(0.8, 0.5, 1.5);
+            shoe.castShadow = true;
+            group.add(shoe);
+
+            // Shoe toe
+            const toeCap = new THREE.SphereGeometry(0.18, 24, 24);
+            const toe = new THREE.Mesh(toeCap, yellowMat);
+            toe.position.set(dir * 0.25, -1.18, 0.45);
+            toe.scale.set(0.7, 0.4, 0.8);
+            group.add(toe);
+
+            return group;
+        };
+
+        const leftLeg = legGroup('left');
+        leftLeg.position.set(0, 1.6, 0);
+        mickey.add(leftLeg);
+
+        const rightLeg = legGroup('right');
+        rightLeg.position.set(0, 1.6, 0);
+        mickey.add(rightLeg);
+
+        // ── Tail ─────────────────────────────────────────────────
+        const tailCurve = new THREE.CubicBezierCurve3(
+            new THREE.Vector3(0, 0, -0.6),
+            new THREE.Vector3(0, 0.3, -1.0),
+            new THREE.Vector3(0.2, 0.5, -1.2),
+            new THREE.Vector3(0.1, 0.7, -0.9)
+        );
+        const tailGeo = new THREE.TubeGeometry(tailCurve, 20, 0.04, 8, false);
+        const tail = new THREE.Mesh(tailGeo, blackMat);
+        tail.position.set(0, 1.6, 0);
+        mickey.add(tail);
+
+        scene.add(mickey);
+
+        // ── Ground / Stage ───────────────────────────────────────
+        const stageGeo = new THREE.CylinderGeometry(2.5, 2.8, 0.2, 64);
+        const stageMat = new THREE.MeshStandardMaterial({
+            color: 0x333355,
+            roughness: 0.3,
+            metalness: 0.4
+        });
+        const stage = new THREE.Mesh(stageGeo, stageMat);
+        stage.position.y = -0.1;
+        stage.receiveShadow = true;
+        scene.add(stage);
+
+        // ── Subtle sparkle particles ─────────────────────────────
+        const particleCount = 200;
+        const particleGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 12;
+            positions[i * 3 + 1] = Math.random() * 8;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 12;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particleMat = new THREE.PointsMaterial({
+            color: 0xffffaa,
+            size: 0.04,
+            transparent: true,
+            opacity: 0.6
+        });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // ── Animation loop ───────────────────────────────────────
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+
+            // Gentle idle breathing
+            bodyGroup.scale.y = 1 + Math.sin(t * 2) * 0.015;
+            headGroup.position.y = 3.6 + Math.sin(t * 2) * 0.03;
+
+            // Subtle arm sway
+            leftArm.rotation.z = Math.sin(t * 1.5) * 0.05;
+            rightArm.rotation.z = -Math.sin(t * 1.5 + 0.5) * 0.05;
+
+            // Particle drift
+            particles.rotation.y = t * 0.05;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // ── Resize handler ───────────────────────────────────────
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
