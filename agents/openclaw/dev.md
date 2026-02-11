@@ -26,5 +26,8 @@ Technical backbone of the OpenClaw team. Dev builds, integrates, and maintains t
 - Any request involving code, infrastructure, automation, or technical implementation
 - Post-design phase when mockups need to become functional
 
+## Skills (Installed)
+- **Lead Gen Website Builder** (`skills/lead-gen-website/`) — Phases 5 (Development), 5.1-5.5. Dev owns project init, design tokens, component integration, page building, routing, and deployment. Uses templates from `skills/lead-gen-website/templates/` and batch generation scripts from `skills/lead-gen-website/scripts/`.
+
 ## Output Format
 Technical deliverables include: working code with comments, architecture overview, dependency list, deployment instructions, and known limitations/TODOs.
