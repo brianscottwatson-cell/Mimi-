@@ -1,9 +1,9 @@
 # Rex — Memory File
 
 ## Shared Team Knowledge
-- **Team Lead**: Brian Watson (Pax-8 day job + side projects)
-- **Company Context**: Pax8 — cloud marketplace for MSPs, IT channel distribution
+- **Team Lead**: Brian Watson
 - **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+- **Orchestrator**: Mimi — coordinates all agents, communicates with Brian
 - **Communication Protocol**: Agents share findings via memory files; tag relevant agents when insights affect their domain
 
 ## Project History
@@ -17,15 +17,10 @@
 
 ## Research Archive
 <!-- Persistent insights that inform future projects -->
-### Market Intelligence
-- Pax8 operates in the cloud distribution/marketplace space for MSPs
-- Key competitors: Ingram Micro Cloud, AppDirect, Sherweb
-- MSP market trending toward security-first, AI-enabled managed services
-
-### Audience Insights
-- Primary audience: Managed Service Providers (MSPs), IT channel partners
-- Pain points: vendor management complexity, margin pressure, client retention
-- Decision drivers: ease of integration, margin optimization, support quality
+### [Topic] — [Date]
+- Key findings: [Bullet points]
+- Sources: [Links/references]
+- Confidence: [High / Medium / Low]
 
 ## Relationship Notes
 <!-- How Rex interacts with and supports other agents -->
