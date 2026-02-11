@@ -6,7 +6,7 @@
     "buildCommand": ""
   },
   "deploy": {
-    "startCommand": "cd claudebot/web/server && python telegram_bot.py",
+    "startCommand": "pip install -r claudebot/web/server/requirements.txt && cd claudebot/web/server && python telegram_bot.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
