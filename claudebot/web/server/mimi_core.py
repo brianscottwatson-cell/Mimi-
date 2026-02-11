@@ -14,6 +14,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 import anthropic
+import httpx
 
 # ---------------------------------------------------------------------------
 # Load .env from project root (two levels up from web/server/)
@@ -104,11 +105,21 @@ sync_client = anthropic.Anthropic()       # reads ANTHROPIC_API_KEY from env
 async_client = anthropic.AsyncAnthropic() # async version for telegram_bot
 
 # ---------------------------------------------------------------------------
+# Kimi K2.5 via NVIDIA NIM (cost-saving alternative for lighter tasks)
+# ---------------------------------------------------------------------------
+
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "").strip()
+KIMI_MODEL = os.getenv("KIMI_MODEL", "moonshotai/kimi-k2.5")
+NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+
+# ---------------------------------------------------------------------------
 # Chat helpers
 # ---------------------------------------------------------------------------
 
-def chat_with_mimi(messages: list[dict]) -> str:
-    """Synchronous Claude call (for Flask)."""
+def chat_with_mimi(messages: list[dict], use_kimi: bool = False) -> str:
+    """Synchronous chat. Set use_kimi=True for lighter tasks to save costs."""
+    if use_kimi and NVIDIA_API_KEY:
+        return _kimi_chat_sync(messages)
     response = sync_client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -118,8 +129,10 @@ def chat_with_mimi(messages: list[dict]) -> str:
     return response.content[0].text
 
 
-async def achat_with_mimi(messages: list[dict]) -> str:
-    """Async Claude call (for Telegram)."""
+async def achat_with_mimi(messages: list[dict], use_kimi: bool = False) -> str:
+    """Async chat. Set use_kimi=True for lighter tasks to save costs."""
+    if use_kimi and NVIDIA_API_KEY:
+        return await _kimi_chat_async(messages)
     response = await async_client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -127,6 +140,55 @@ async def achat_with_mimi(messages: list[dict]) -> str:
         messages=messages,
     )
     return response.content[0].text
+
+
+def _kimi_messages(messages: list[dict]) -> list[dict]:
+    """Convert Claude-format messages to OpenAI-format for Kimi."""
+    oai_msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        # Handle list-of-blocks content (extract text only — Kimi doesn't do vision)
+        if isinstance(content, list):
+            text_parts = [b.get("text", "") for b in content if b.get("type") == "text"]
+            content = "\n".join(text_parts) or "Please analyze the attached content."
+        oai_msgs.append({"role": role, "content": content})
+    return oai_msgs
+
+
+def _kimi_chat_sync(messages: list[dict]) -> str:
+    """Synchronous Kimi K2.5 call via NVIDIA NIM."""
+    resp = httpx.post(
+        f"{NVIDIA_BASE_URL}/chat/completions",
+        headers={"Authorization": f"Bearer {NVIDIA_API_KEY}"},
+        json={
+            "model": KIMI_MODEL,
+            "messages": _kimi_messages(messages),
+            "max_tokens": 2048,
+            "temperature": 0.8,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+
+async def _kimi_chat_async(messages: list[dict]) -> str:
+    """Async Kimi K2.5 call via NVIDIA NIM."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{NVIDIA_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {NVIDIA_API_KEY}"},
+            json={
+                "model": KIMI_MODEL,
+                "messages": _kimi_messages(messages),
+                "max_tokens": 2048,
+                "temperature": 0.8,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
 
 # ---------------------------------------------------------------------------
 # File / image processing (generic, no Flask dependency)

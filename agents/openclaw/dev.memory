@@ -1,0 +1,40 @@
+# Dev — Memory File
+
+## Shared Team Knowledge
+- **Team Lead**: Brian Watson (Pax-8 day job + side projects)
+- **Company Context**: Pax8 — cloud marketplace for MSPs, IT channel distribution
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+
+## Project History
+### [Project Name] — [Date]
+- **Status**: [Active / Complete / On Hold]
+- **Dev's Role**: [Engineering tasks assigned]
+- **Tech Stack**: [Languages, frameworks, infrastructure]
+- **Architecture Notes**: [Key decisions and rationale]
+- **Deployment**: [Where it lives, how to deploy]
+- **Tech Debt**: [Known issues, future improvements]
+
+## Tech Stack Registry
+### Current Infrastructure
+- **Hosting**: Railway (Python services), GitHub (source control)
+- **Backend**: Python 3.12, Flask, Anthropic SDK
+- **Frontend**: Vanilla HTML/CSS/JS (cyberpunk theme)
+- **AI**: Claude API (Sonnet 4.5), x.ai (Eve TTS)
+- **Bot**: python-telegram-bot (Mimi on Telegram)
+- **Database**: TBD (PostgreSQL planned)
+
+### Side Projects
+- OpenClaw agent system — multi-agent AI team
+- Mimi — personal assistant (web + Telegram)
+
+## Code Standards
+- Python: Type hints, docstrings for public functions, max 200 lines per module
+- JavaScript: ES6+, no jQuery, minimal dependencies
+- Git: Feature branches, descriptive commit messages
+- Security: Never commit secrets, validate all inputs, parameterize queries
+
+## Relationship Notes
+- **Dax**: Needs responsive breakpoints and component specs documented clearly
+- **Pax**: Estimates should include buffer — Dev tends to underestimate integration time
+- **Finn**: Infrastructure costs should be tracked and reported monthly
+- **Mia**: Analytics implementations need thorough QA before campaign launch

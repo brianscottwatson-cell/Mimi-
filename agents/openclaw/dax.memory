@@ -1,0 +1,38 @@
+# Dax — Memory File
+
+## Shared Team Knowledge
+- **Team Lead**: Brian Watson (Pax-8 day job + side projects)
+- **Company Context**: Pax8 — cloud marketplace for MSPs, IT channel distribution
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+
+## Project History
+### [Project Name] — [Date]
+- **Status**: [Active / Complete / On Hold]
+- **Dax's Role**: [Design tasks assigned]
+- **Deliverables**: [Mockups, assets, brand materials]
+- **Design Decisions**: [Key visual choices and rationale]
+- **Handoffs**: [Specs to Dev, assets to Mia]
+
+## Design System
+### OpenClaw Brand
+- **Primary Palette**: Neon pink (#FF2D78), Electric blue (#00D4FF), Deep purple (#1A0A2E), Grid black (#0D0D0D)
+- **Typography**: Monospace for headers (cyberpunk feel), clean sans-serif for body
+- **Aesthetic**: Retro cyberpunk — neon grids, glitch effects, holographic overlays
+- **UI Patterns**: Dark mode default, glowing borders, subtle scan-line textures
+
+### Pax8 Brand Guidelines
+- Follow official Pax8 brand kit for all work-related materials
+- Blue-dominant palette, professional and clean
+- Partner-focused imagery, cloud/technology motifs
+
+## Asset Library
+<!-- Track reusable design assets -->
+- Agent avatars: [To be created per agent personality]
+- Dashboard components: [Cards, charts, progress bars]
+- Icon sets: [Agent role icons, status indicators]
+
+## Relationship Notes
+- **Cora**: Best work happens when copy arrives first — Dax wraps visuals around words
+- **Dev**: Needs pixel-perfect specs with responsive breakpoints documented
+- **Mia**: Campaign assets need platform-specific sizing (IG: 1080x1080, LinkedIn: 1200x627, etc.)
+- **Rex**: Data visualizations should prioritize clarity over beauty (but ideally both)
