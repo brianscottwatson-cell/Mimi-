@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050508">
+  <title>MIMI // GATEWAY</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/cyberpunk.css">
+</head>
+<body>
+
+  <!-- Data Stream Background Canvas -->
+  <canvas id="data-stream"></canvas>
+
+  <!-- Scanline + CRT Layers -->
+  <div class="scanline-overlay"></div>
+  <div class="crt-vignette"></div>
+  <div class="crt-flicker"></div>
+
+  <!-- Boot Sequence Overlay -->
+  <div class="boot-overlay" id="boot-overlay">
+    <div class="boot-content">
+      <div class="boot-logo">
+        <div class="mimi-boot-avatar">
+          <img src="assets/mimi-avatar.svg" alt="Mimi" class="boot-avatar-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="boot-avatar-fallback" style="display:none">M</div>
+        </div>
+      </div>
+      <pre class="boot-text" id="boot-text"></pre>
+      <div class="boot-progress">
+        <div class="boot-progress-bar" id="boot-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Sidebar -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <aside class="history-sidebar" id="history-sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-diamond"></div>
+        <span class="sidebar-title">PAST MESSAGES</span>
+      </div>
+      <button class="sidebar-close" id="sidebar-close" aria-label="Close sidebar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="sidebar-search">
+      <div class="search-input-wrap">
+        <span class="search-icon">&#9906;</span>
+        <input type="text" placeholder="SEARCH..." id="history-search" autocomplete="off">
+      </div>
+    </div>
+    <ul class="history-list" id="history-list"></ul>
+    <div class="sidebar-footer">
+      <button class="new-session-btn" id="new-chat-btn">
+        <span class="btn-icon">&#9656;</span>
+        NEW SESSION
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Interface -->
+  <div class="interface-shell">
+
+    <!-- Top HUD Bar -->
+    <header class="hud-header">
+      <div class="hud-left">
+        <button class="menu-trigger" id="hamburger-btn" aria-label="Open messages">
+          <div class="menu-bars">
+            <span></span><span></span><span></span>
+          </div>
+        </button>
+        <div class="hud-tag">
+          <span class="hud-tag-label">SYS</span>
+          <span class="hud-tag-value" id="status-text">ONLINE</span>
+        </div>
+      </div>
+
+      <div class="hud-center">
+        <div class="agent-identity">
+          <div class="agent-avatar" id="agent-avatar">
+            <div class="avatar-ring"></div>
+            <div class="avatar-core">
+              <img src="assets/mimi-avatar.svg" alt="Mimi" class="avatar-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <span class="avatar-letter-fallback" style="display:none">M</span>
+            </div>
+            <div class="avatar-scanline"></div>
+          </div>
+          <div class="agent-info">
+            <h1 class="agent-name" data-text="MIMI">MIMI</h1>
+            <div class="agent-subtitle">
+              <span class="subtitle-dot"></span>
+              <span class="subtitle-text">PERSONAL AGENT // v1.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="hud-metrics">
+          <div class="metric">
+            <span class="metric-label">LATENCY</span>
+            <span class="metric-value" id="metric-latency">--ms</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">MSGS</span>
+            <span class="metric-value" id="metric-packets">0</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Floating HUD Elements -->
+    <div class="hud-float hud-float-tl">
+      <span class="hud-bracket">[</span>
+      <span class="hud-float-text">EVERGREEN CO</span>
+      <span class="hud-bracket">]</span>
+    </div>
+    <div class="hud-float hud-float-tr">
+      <span class="hud-float-text" id="hud-clock">00:00:00</span>
+    </div>
+
+    <!-- Chat Messages Area -->
+    <main class="chat-viewport" id="chat-messages">
+      <div class="system-notice">
+        <div class="notice-line"></div>
+        <div class="notice-content">
+          <span class="notice-icon">&#9670;</span>
+          <span class="notice-text">MIMI ONLINE // READY WHEN YOU ARE</span>
+          <span class="notice-icon">&#9670;</span>
+        </div>
+        <div class="notice-line"></div>
+      </div>
+    </main>
+
+    <!-- Input Dock -->
+    <footer class="input-dock">
+      <!-- File Preview Strip -->
+      <div class="file-preview-strip" id="file-preview-strip"></div>
+
+      <div class="input-frame">
+        <div class="input-gutter">
+          <button class="upload-btn" id="upload-btn" aria-label="Attach file" title="Attach photo or document">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+          <input type="file" id="file-input" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.doc,.docx" style="display:none">
+        </div>
+        <textarea
+          id="message-input"
+          placeholder="Talk to Mimi..."
+          rows="1"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <button class="transmit-btn" id="send-btn" aria-label="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+        <button class="voice-btn" id="voice-btn" aria-label="Voice input" title="Tap to speak">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+            <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+        <button class="voice-output-toggle active" id="voice-output-toggle" aria-label="Toggle voice output" title="Voice output ON">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 010 14.14" class="vol-wave-1"/>
+            <path d="M15.54 8.46a5 5 0 010 7.07" class="vol-wave-2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-meta">
+        <span class="meta-hint">SHIFT+ENTER newline</span>
+        <span class="meta-separator">|</span>
+        <span class="meta-hint">ENTER send</span>
+        <span class="meta-separator">|</span>
+        <span class="meta-hint">Attach photos & docs</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="js/matrix-rain.js"></script>
+  <script src="js/chat.js"></script>
+</body>
+</html>

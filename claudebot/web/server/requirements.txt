@@ -1,0 +1,9 @@
+flask
+flask-cors
+anthropic
+python-dotenv
+requests
+elevenlabs
+websockets
+python-telegram-bot>=20.7
+pydub>=0.25.1
