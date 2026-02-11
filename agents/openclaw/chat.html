@@ -441,6 +441,21 @@ chatHistory.forEach(msg => addMessage(msg.text, msg.type, false));
 scrollToBottom();
 checkConnection();
 
+// ── Pick up pending messages from dashboard sidebar ───────
+(function checkPendingChat() {
+  try {
+    const pending = JSON.parse(localStorage.getItem('openclaw-pending-chat') || 'null');
+    if (pending && pending.message && (Date.now() - pending.timestamp < 30000)) {
+      localStorage.removeItem('openclaw-pending-chat');
+      // Wait for connection check, then auto-send
+      setTimeout(() => {
+        document.getElementById('msgInput').value = pending.message;
+        sendMessage();
+      }, 1000);
+    }
+  } catch {}
+})();
+
 // ── Settings ───────────────────────────────────────────────
 function toggleSettings() {
   document.getElementById('settingsBar').classList.toggle('visible');

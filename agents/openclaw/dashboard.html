@@ -24,6 +24,7 @@
     --neon-red: #ef4444;
     --glow-pink: 0 0 20px rgba(255,45,120,0.3);
     --glow-blue: 0 0 20px rgba(0,212,255,0.3);
+    --sidebar-width: 300px;
   }
 
   body {
@@ -34,20 +35,390 @@
     overflow-x: hidden;
   }
 
-  /* ── Scanline overlay ─────────────────────────────────── */
   body::after {
     content: '';
     position: fixed;
     inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.03) 2px,
-      rgba(0,0,0,0.03) 4px
-    );
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
     pointer-events: none;
     z-index: 9999;
+  }
+
+  /* ── Layout Wrapper ────────────────────────────────────── */
+  .main-content {
+    transition: margin-left 0.3s ease;
+    margin-left: 0;
+  }
+
+  body.sidebar-open .main-content {
+    margin-left: var(--sidebar-width);
+  }
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: calc(-1 * var(--sidebar-width));
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    z-index: 1000;
+    transition: left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body.sidebar-open .sidebar {
+    left: 0;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: linear-gradient(180deg, rgba(168,85,247,0.1) 0%, transparent 100%);
+  }
+
+  .sidebar-header h2 {
+    font-size: 0.8rem;
+    color: var(--neon-purple);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sidebar-close {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .sidebar-close:hover { border-color: var(--neon-pink); color: var(--neon-pink); }
+
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+  }
+
+  .sidebar-body::-webkit-scrollbar { width: 4px; }
+  .sidebar-body::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Folder Accordion ──────────────────────────────────── */
+  .folder {
+    border-bottom: 1px solid rgba(42,42,64,0.4);
+  }
+
+  .folder-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text);
+    transition: background 0.2s;
+    user-select: none;
+  }
+
+  .folder-header:hover { background: rgba(168,85,247,0.06); }
+
+  .folder-header .folder-icon { font-size: 0.9rem; transition: transform 0.2s; }
+  .folder.open .folder-header .folder-icon { transform: rotate(90deg); }
+
+  .folder-header .folder-name { flex: 1; }
+
+  .folder-header .folder-count {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 8px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .folder-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .folder.open .folder-body { max-height: 600px; }
+
+  .project-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem 0.5rem 2.2rem;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text);
+  }
+
+  .project-item:hover { background: rgba(0,212,255,0.05); }
+  .project-item.selected { background: rgba(168,85,247,0.1); border-right: 2px solid var(--neon-purple); }
+
+  .project-item .proj-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .project-item .proj-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .project-item .proj-pct {
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .add-project-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem 0.45rem 2.2rem;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: inherit;
+    width: 100%;
+    text-align: left;
+    transition: color 0.2s;
+  }
+
+  .add-project-btn:hover { color: var(--neon-green); }
+
+  /* ── History Section ───────────────────────────────────── */
+  .history-section {
+    border-top: 1px solid var(--border);
+    margin-top: 0.5rem;
+  }
+
+  .history-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text);
+    transition: background 0.2s;
+    user-select: none;
+  }
+
+  .history-header:hover { background: rgba(168,85,247,0.06); }
+  .history-header .h-icon { font-size: 0.9rem; transition: transform 0.2s; }
+  .history-section.open .history-header .h-icon { transform: rotate(90deg); }
+
+  .history-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .history-section.open .history-body { max-height: 400px; overflow-y: auto; }
+
+  .history-entry {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid rgba(42,42,64,0.3);
+    font-size: 0.68rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .history-entry:hover { background: rgba(0,212,255,0.05); }
+
+  .history-entry .h-time {
+    color: var(--text-dim);
+    font-size: 0.6rem;
+    margin-bottom: 2px;
+  }
+
+  .history-entry .h-snippet {
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Sidebar Overlay (mobile) ──────────────────────────── */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
+  }
+
+  body.sidebar-open .sidebar-overlay { display: block; }
+
+  @media (min-width: 769px) {
+    .sidebar-overlay { display: none !important; }
+  }
+
+  @media (max-width: 768px) {
+    body.sidebar-open .main-content { margin-left: 0; }
+    .sidebar { width: 280px; left: -280px; }
+  }
+
+  /* ── Modal ─────────────────────────────────────────────── */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-backdrop.visible { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 1.5rem;
+    animation: modalIn 0.25s ease;
+  }
+
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .modal h3 {
+    font-size: 1rem;
+    color: var(--neon-pink);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .modal label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 0.3rem;
+    margin-top: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .modal input, .modal textarea, .modal select {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.8rem;
+    resize: vertical;
+  }
+
+  .modal input:focus, .modal textarea:focus, .modal select:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.2rem;
+    justify-content: flex-end;
+  }
+
+  .modal-btn {
+    padding: 0.5rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: opacity 0.2s;
+  }
+
+  .modal-btn.primary {
+    background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+    color: white;
+  }
+
+  .modal-btn.secondary {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  .modal-btn:hover { opacity: 0.85; }
+
+  /* ── Project Detail Modal ──────────────────────────────── */
+  .proj-detail-agents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+
+  .proj-agent-badge {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--neon-purple);
+  }
+
+  .proj-prd {
+    background: var(--surface-2);
+    border-left: 3px solid var(--neon-purple);
+    padding: 0.8rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .proj-rag {
+    background: var(--surface-2);
+    border-left: 3px solid var(--neon-blue);
+    padding: 0.8rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    max-height: 150px;
+    overflow-y: auto;
+    color: var(--text-dim);
   }
 
   /* ── Header ───────────────────────────────────────────── */
@@ -56,6 +427,7 @@
     padding: 2rem 1rem 1rem;
     border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, rgba(168,85,247,0.08) 0%, transparent 100%);
+    position: relative;
   }
 
   header h1 {
@@ -67,362 +439,150 @@
     text-transform: uppercase;
   }
 
-  header p {
-    color: var(--text-dim);
-    font-size: 0.8rem;
-    margin-top: 0.3rem;
-  }
+  header p { color: var(--text-dim); font-size: 0.8rem; margin-top: 0.3rem; }
 
-  /* ── Agent Hub (Mimi center + ring) ───────────────────── */
-  .agent-hub {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 2rem 1rem;
-  }
-
-  .hub-ring {
-    position: relative;
-    width: 520px;
-    height: 520px;
-  }
-
-  .hub-center {
+  .sidebar-toggle {
     position: absolute;
+    left: 1.2rem;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    z-index: 10;
-  }
-
-  .hub-center .agent-icon {
-    width: 80px;
-    height: 80px;
-    font-size: 2.2rem;
-    box-shadow: var(--glow-pink), var(--glow-blue);
-    border: 2px solid var(--neon-pink);
-    animation: pulse-glow 3s ease-in-out infinite;
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: var(--glow-pink); }
-    50% { box-shadow: var(--glow-pink), 0 0 40px rgba(255,45,120,0.5); }
-  }
-
-  .hub-center .agent-name {
-    font-size: 0.9rem;
-    color: var(--neon-pink);
-    margin-top: 0.4rem;
-    font-weight: bold;
-  }
-
-  .hub-center .agent-role {
-    font-size: 0.65rem;
-    color: var(--text-dim);
-  }
-
-  .hub-agent {
-    position: absolute;
-    text-align: center;
+    transform: translateY(-50%);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: transform 0.2s;
-  }
-
-  .hub-agent:hover { transform: scale(1.1); }
-
-  /* ── Agent Icon ───────────────────────────────────────── */
-  .agent-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
+    font-size: 1.2rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.6rem;
-    background: var(--surface-2);
-    border: 2px solid var(--border);
-    margin: 0 auto;
-    transition: all 0.3s;
+    transition: all 0.2s;
+    z-index: 10;
   }
 
+  .sidebar-toggle:hover { border-color: var(--neon-purple); color: var(--neon-purple); }
+
+  .chat-link {
+    position: absolute;
+    right: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #ff2d78, #a855f7);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-family: inherit;
+    font-size: 0.8rem;
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* ── Agent Hub ─────────────────────────────────────────── */
+  .agent-hub { display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+  .hub-ring { position: relative; width: 520px; height: 520px; }
+  .hub-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10; }
+  .hub-center .agent-icon { width: 80px; height: 80px; font-size: 2.2rem; box-shadow: var(--glow-pink), var(--glow-blue); border: 2px solid var(--neon-pink); animation: pulse-glow 3s ease-in-out infinite; }
+  @keyframes pulse-glow { 0%, 100% { box-shadow: var(--glow-pink); } 50% { box-shadow: var(--glow-pink), 0 0 40px rgba(255,45,120,0.5); } }
+  .hub-center .agent-name { font-size: 0.9rem; color: var(--neon-pink); margin-top: 0.4rem; font-weight: bold; }
+  .hub-center .agent-role { font-size: 0.65rem; color: var(--text-dim); }
+  .hub-agent { position: absolute; text-align: center; cursor: pointer; transition: transform 0.2s; }
+  .hub-agent:hover { transform: scale(1.1); }
+  .hub-agent.highlighted .agent-icon { box-shadow: 0 0 20px rgba(168,85,247,0.6); }
+
+  .agent-icon { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; background: var(--surface-2); border: 2px solid var(--border); margin: 0 auto; transition: all 0.3s; }
   .agent-icon.online { border-color: var(--neon-green); box-shadow: 0 0 12px rgba(34,197,94,0.3); }
   .agent-icon.busy { border-color: var(--neon-yellow); box-shadow: 0 0 12px rgba(234,179,8,0.3); }
   .agent-icon.offline { border-color: var(--border); opacity: 0.5; }
+  .agent-name { font-size: 0.75rem; margin-top: 0.3rem; color: var(--text); font-weight: 600; }
+  .agent-role-tag { font-size: 0.6rem; color: var(--text-dim); }
 
-  .agent-name {
-    font-size: 0.75rem;
-    margin-top: 0.3rem;
-    color: var(--text);
-    font-weight: 600;
-  }
+  .connection-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  .connection-svg line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.4; }
 
-  .agent-role-tag {
-    font-size: 0.6rem;
-    color: var(--text-dim);
-  }
+  /* ── Dashboard Grid ────────────────────────────────────── */
+  .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 2rem 2rem; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 768px) { .dashboard { grid-template-columns: 1fr; } .hub-ring { width: 360px; height: 360px; } }
 
-  /* ── Connection lines ─────────────────────────────────── */
-  .connection-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-  }
-
-  .connection-svg line {
-    stroke: var(--border);
-    stroke-width: 1;
-    stroke-dasharray: 4 4;
-    opacity: 0.4;
-  }
-
-  /* ── Dashboard Grid ───────────────────────────────────── */
-  .dashboard {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    padding: 1rem 2rem 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  @media (max-width: 768px) {
-    .dashboard { grid-template-columns: 1fr; }
-    .hub-ring { width: 360px; height: 360px; }
-  }
-
-  /* ── Cards ────────────────────────────────────────────── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.2rem;
-    transition: border-color 0.3s;
-  }
-
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; transition: border-color 0.3s; }
   .card:hover { border-color: var(--neon-purple); }
-
-  .card h2 {
-    font-size: 0.85rem;
-    color: var(--neon-blue);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
+  .card h2 { font-size: 0.85rem; color: var(--neon-blue); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
   .card h2 .icon { font-size: 1rem; }
 
-  /* ── Task List ────────────────────────────────────────── */
   .task-list { list-style: none; }
-
-  .task-item {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid rgba(42,42,64,0.5);
-    font-size: 0.8rem;
-  }
-
+  .task-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(42,42,64,0.5); font-size: 0.8rem; }
   .task-item:last-child { border-bottom: none; }
-
-  .task-status {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
+  .task-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .task-status.done { background: var(--neon-green); }
   .task-status.active { background: var(--neon-yellow); animation: blink 1.5s infinite; }
   .task-status.pending { background: var(--text-dim); }
-
   @keyframes blink { 50% { opacity: 0.4; } }
-
   .task-text { flex: 1; }
   .task-text.done-text { text-decoration: line-through; color: var(--text-dim); }
+  .task-agent { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; background: var(--surface-2); color: var(--neon-purple); border: 1px solid var(--border); }
 
-  .task-agent {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    border-radius: 3px;
-    background: var(--surface-2);
-    color: var(--neon-purple);
-    border: 1px solid var(--border);
-  }
-
-  /* ── Progress Bars ────────────────────────────────────── */
   .progress-section { margin-bottom: 1rem; }
-
-  .progress-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    margin-bottom: 0.3rem;
-  }
-
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.3rem; }
   .progress-label .name { color: var(--text); }
   .progress-label .pct { color: var(--neon-blue); }
+  .progress-bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); }
 
-  .progress-bar {
-    height: 6px;
-    background: var(--surface-2);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.6s ease;
-    background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple));
-  }
-
-  /* ── Agent Detail Panel ───────────────────────────────── */
-  .agent-detail {
-    grid-column: 1 / -1;
-    display: none;
-  }
-
+  .agent-detail { grid-column: 1 / -1; display: none; }
   .agent-detail.visible { display: block; }
-
-  .detail-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
+  .detail-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
   .detail-header .agent-icon { width: 50px; height: 50px; font-size: 1.4rem; }
-
-  .detail-info h3 {
-    font-size: 1rem;
-    color: var(--neon-pink);
-  }
-
-  .detail-info p {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-
-  .detail-soul {
-    font-size: 0.8rem;
-    line-height: 1.6;
-    color: var(--text);
-    background: var(--surface-2);
-    padding: 1rem;
-    border-radius: 6px;
-    margin-top: 0.8rem;
-    border-left: 3px solid var(--neon-purple);
-  }
-
-  .detail-close {
-    float: right;
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 4px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 0.7rem;
-  }
-
+  .detail-info h3 { font-size: 1rem; color: var(--neon-pink); }
+  .detail-info p { font-size: 0.75rem; color: var(--text-dim); }
+  .detail-soul { font-size: 0.8rem; line-height: 1.6; color: var(--text); background: var(--surface-2); padding: 1rem; border-radius: 6px; margin-top: 0.8rem; border-left: 3px solid var(--neon-purple); }
+  .detail-close { float: right; background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.7rem; }
   .detail-close:hover { border-color: var(--neon-pink); color: var(--neon-pink); }
 
-  /* ── Assign Task Form ─────────────────────────────────── */
-  .assign-form {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .assign-form input,
-  .assign-form select {
-    flex: 1;
-    min-width: 120px;
-    padding: 0.5rem;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 0.75rem;
-  }
-
-  .assign-form input:focus,
-  .assign-form select:focus {
-    outline: none;
-    border-color: var(--neon-blue);
-  }
-
-  .assign-form button {
-    padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
-    border: none;
-    border-radius: 4px;
-    color: white;
-    font-family: inherit;
-    font-size: 0.75rem;
-    cursor: pointer;
-    font-weight: 600;
-    transition: opacity 0.2s;
-  }
-
+  .assign-form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+  .assign-form input, .assign-form select { flex: 1; min-width: 120px; padding: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: inherit; font-size: 0.75rem; }
+  .assign-form input:focus, .assign-form select:focus { outline: none; border-color: var(--neon-blue); }
+  .assign-form button { padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); border: none; border-radius: 4px; color: white; font-family: inherit; font-size: 0.75rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
   .assign-form button:hover { opacity: 0.85; }
 
-  /* ── Stats Row ────────────────────────────────────────── */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    padding: 0 2rem;
-    max-width: 1200px;
-    margin: 0 auto 1rem;
-  }
-
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 0 2rem; max-width: 1200px; margin: 0 auto 1rem; }
   @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
-
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
-    text-align: center;
-  }
-
-  .stat-value {
-    font-size: 1.6rem;
-    font-weight: bold;
-    background: linear-gradient(135deg, var(--neon-pink), var(--neon-blue));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .stat-label {
-    font-size: 0.65rem;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-top: 0.2rem;
-  }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+  .stat-value { font-size: 1.6rem; font-weight: bold; background: linear-gradient(135deg, var(--neon-pink), var(--neon-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.2rem; }
 </style>
 </head>
 <body>
 
+<!-- ── Sidebar ──────────────────────────────────────────────── -->
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>Folders &amp; History</h2>
+    <button class="sidebar-close" onclick="toggleSidebar()">&times;</button>
+  </div>
+  <div class="sidebar-body">
+    <div id="foldersContainer"></div>
+    <div class="history-section" id="historySection">
+      <div class="history-header" onclick="toggleHistory()">
+        <span class="h-icon">&#9654;</span>
+        <span>Chat History</span>
+      </div>
+      <div class="history-body" id="historyBody"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main Content ─────────────────────────────────────────── -->
+<div class="main-content">
+
 <header>
+  <button class="sidebar-toggle" onclick="toggleSidebar()" title="Projects &amp; History">&#9776;</button>
   <h1>OpenClaw Command Center</h1>
   <p>Agent Team Dashboard — Orchestrated by Mimi</p>
-  <a href="chat.html" style="position:absolute;right:2rem;top:1.5rem;padding:8px 16px;background:linear-gradient(135deg,#ff2d78,#a855f7);border:none;border-radius:6px;color:white;font-family:inherit;font-size:0.8rem;text-decoration:none;font-weight:600;">Chat with Mimi</a>
+  <a href="chat.html" class="chat-link">Chat with Mimi</a>
 </header>
 
-<!-- ── Agent Hub ─────────────────────────────────────────── -->
 <div class="agent-hub">
   <div class="hub-ring" id="hubRing">
     <svg class="connection-svg" id="connectionSvg"></svg>
@@ -431,47 +591,26 @@
       <div class="agent-name" style="color: var(--neon-pink)">Mimi</div>
       <div class="agent-role">Orchestrator</div>
     </div>
-    <!-- Agents placed by JS -->
   </div>
 </div>
 
-<!-- ── Stats ─────────────────────────────────────────────── -->
 <div class="stats-row">
-  <div class="stat-card">
-    <div class="stat-value" id="statAgents">8</div>
-    <div class="stat-label">Agents Online</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value" id="statActive">3</div>
-    <div class="stat-label">Active Tasks</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value" id="statCompleted">12</div>
-    <div class="stat-label">Completed</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value" id="statProjects">2</div>
-    <div class="stat-label">Projects</div>
-  </div>
+  <div class="stat-card"><div class="stat-value" id="statAgents">8</div><div class="stat-label">Agents Online</div></div>
+  <div class="stat-card"><div class="stat-value" id="statActive">3</div><div class="stat-label">Active Tasks</div></div>
+  <div class="stat-card"><div class="stat-value" id="statCompleted">12</div><div class="stat-label">Completed</div></div>
+  <div class="stat-card"><div class="stat-value" id="statProjects">2</div><div class="stat-label">Projects</div></div>
 </div>
 
-<!-- ── Dashboard Grid ────────────────────────────────────── -->
 <div class="dashboard">
-
-  <!-- Agent Detail (hidden by default) -->
   <div class="card agent-detail" id="agentDetail">
     <button class="detail-close" onclick="closeDetail()">close</button>
     <div class="detail-header">
       <div class="agent-icon online" id="detailIcon"></div>
-      <div class="detail-info">
-        <h3 id="detailName"></h3>
-        <p id="detailRole"></p>
-      </div>
+      <div class="detail-info"><h3 id="detailName"></h3><p id="detailRole"></p></div>
     </div>
     <div class="detail-soul" id="detailSoul"></div>
   </div>
 
-  <!-- Active Tasks -->
   <div class="card">
     <h2><span class="icon">&#9889;</span> Active Tasks</h2>
     <ul class="task-list" id="taskList"></ul>
@@ -479,30 +618,73 @@
       <input type="text" id="newTaskInput" placeholder="New task description...">
       <select id="newTaskAgent">
         <option value="">Assign to...</option>
-        <option value="Rex">Rex</option>
-        <option value="Cora">Cora</option>
-        <option value="Dax">Dax</option>
-        <option value="Dev">Dev</option>
-        <option value="Finn">Finn</option>
-        <option value="Pax">Pax</option>
-        <option value="Mia">Mia</option>
+        <option value="Rex">Rex</option><option value="Cora">Cora</option><option value="Dax">Dax</option>
+        <option value="Dev">Dev</option><option value="Finn">Finn</option><option value="Pax">Pax</option><option value="Mia">Mia</option>
       </select>
       <button onclick="addTask()">+ Add Task</button>
     </div>
   </div>
 
-  <!-- Project Progress -->
   <div class="card">
     <h2><span class="icon">&#128200;</span> Project Progress</h2>
     <div id="progressList"></div>
   </div>
 
-  <!-- Recent Activity -->
   <div class="card" style="grid-column: 1 / -1;">
     <h2><span class="icon">&#128339;</span> Activity Feed</h2>
     <ul class="task-list" id="activityFeed"></ul>
   </div>
+</div>
 
+</div><!-- end main-content -->
+
+<!-- ── New Project Modal ────────────────────────────────────── -->
+<div class="modal-backdrop" id="newProjectModal">
+  <div class="modal">
+    <h3>&#128640; New Project</h3>
+    <label>Folder</label>
+    <select id="modalFolder"></select>
+    <label>Project Name</label>
+    <input type="text" id="modalProjName" placeholder="e.g. Health Tracker App">
+    <label>Description / Initial Prompt</label>
+    <textarea id="modalProjDesc" rows="4" placeholder="What is this project about? What do you want to build?"></textarea>
+    <label>RAG Document Dump (paste docs, notes, research)</label>
+    <textarea id="modalProjRag" rows="4" placeholder="Paste any reference material here..."></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeNewProjectModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="createProject()">Create &amp; Brief Mimi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Project Detail Modal ─────────────────────────────────── -->
+<div class="modal-backdrop" id="projectDetailModal">
+  <div class="modal">
+    <h3 id="projDetailTitle">Project</h3>
+    <label>Folder</label>
+    <div id="projDetailFolder" style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.3rem;"></div>
+    <label>Progress</label>
+    <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.3rem;">
+      <div class="progress-bar" style="flex:1;"><div class="progress-fill" id="projDetailProgress"></div></div>
+      <span id="projDetailPct" style="font-size:0.8rem;color:var(--neon-blue);font-weight:600;"></span>
+    </div>
+    <label>Assigned Agents</label>
+    <div class="proj-detail-agents" id="projDetailAgents"></div>
+    <label>Description</label>
+    <div class="proj-prd" id="projDetailDesc"></div>
+    <div id="projDetailPrdSection" style="display:none;">
+      <label>PRD Summary</label>
+      <div class="proj-prd" id="projDetailPrd"></div>
+    </div>
+    <div id="projDetailRagSection" style="display:none;">
+      <label>RAG Documents</label>
+      <div class="proj-rag" id="projDetailRag"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeProjectDetailModal()">Close</button>
+      <button class="modal-btn primary" onclick="openProjectInChat()">Open in Chat</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -524,50 +706,276 @@ const agents = [
     soul: 'Seasoned marketer from viral social media launches. Virality without strategy is a firework — bright and brief. Real marketing turns attention into revenue, consistently.' },
 ];
 
-// ── Place agents in a ring ─────────────────────────────────
+// ── Data Persistence ──────────────────────────────────────
+const FOLDERS_KEY = 'openclaw-folders';
+const PROJECTS_KEY = 'openclaw-projects';
+
+function loadFolders() {
+  try { return JSON.parse(localStorage.getItem(FOLDERS_KEY)) || null; } catch { return null; }
+}
+
+function loadProjects() {
+  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY)) || []; } catch { return []; }
+}
+
+function saveFolders() { localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders)); }
+function saveProjects() { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); }
+
+let folders = loadFolders() || [
+  { id: 'personal', name: 'Personal Life', icon: '\u{1F3E0}' },
+  { id: 'work',     name: 'Work',          icon: '\u{1F4BC}' },
+  { id: 'side',     name: 'Side Projects',  icon: '\u{1F680}' },
+];
+if (!loadFolders()) saveFolders();
+
+let projects = loadProjects();
+if (projects.length === 0) {
+  // Seed sample projects
+  projects = [
+    { id: 'p1', folderId: 'personal', name: 'Health & Recomp Tracker', progress: 30, description: 'Track daily macros, workouts, and body recomp progress.', agents: ['Dev', 'Rex'], prd: '', rag: '', created: Date.now() },
+    { id: 'p2', folderId: 'work', name: 'OpenClaw Agent System', progress: 45, description: 'Build functional multi-agent team with dashboard.', agents: ['Dev', 'Dax', 'Pax'], prd: '', rag: '', created: Date.now() },
+    { id: 'p3', folderId: 'work', name: 'Mimi Telegram Integration', progress: 100, description: 'Deploy Mimi as a Telegram bot on Railway.', agents: ['Dev'], prd: '', rag: '', created: Date.now() },
+    { id: 'p4', folderId: 'side', name: 'Lead Gen Website Builder', progress: 10, description: 'Skill for building local service lead gen websites.', agents: ['Dev', 'Dax', 'Cora', 'Mia', 'Rex'], prd: '', rag: '', created: Date.now() },
+  ];
+  saveProjects();
+}
+
+let selectedProjectId = null;
+
+// ── Sidebar ──────────────────────────────────────────────
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-open');
+}
+
+// ── Render Folders ────────────────────────────────────────
+function renderFolders() {
+  const container = document.getElementById('foldersContainer');
+  container.innerHTML = '';
+  folders.forEach(folder => {
+    const folderProjects = projects.filter(p => p.folderId === folder.id);
+    const div = document.createElement('div');
+    div.className = 'folder';
+    div.id = 'folder-' + folder.id;
+    div.innerHTML = `
+      <div class="folder-header" onclick="toggleFolder('${folder.id}')">
+        <span class="folder-icon">&#9654;</span>
+        <span class="folder-name">${folder.icon} ${folder.name}</span>
+        <span class="folder-count">${folderProjects.length}</span>
+      </div>
+      <div class="folder-body">
+        ${folderProjects.map(p => {
+          const pctColor = p.progress >= 100 ? 'var(--neon-green)' : p.progress > 50 ? 'var(--neon-blue)' : p.progress > 0 ? 'var(--neon-yellow)' : 'var(--text-dim)';
+          const dotColor = p.progress >= 100 ? 'var(--neon-green)' : 'var(--neon-purple)';
+          return `<div class="project-item ${selectedProjectId === p.id ? 'selected' : ''}" onclick="selectProject('${p.id}')">
+            <span class="proj-dot" style="background:${dotColor}"></span>
+            <span class="proj-name">${p.name}</span>
+            <span class="proj-pct" style="color:${pctColor};background:${pctColor}15">${p.progress}%</span>
+          </div>`;
+        }).join('')}
+        <button class="add-project-btn" onclick="openNewProjectModal('${folder.id}')">+ New Project</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function toggleFolder(folderId) {
+  document.getElementById('folder-' + folderId).classList.toggle('open');
+}
+
+// ── Chat History ─────────────────────────────────────────
+function renderHistory() {
+  const body = document.getElementById('historyBody');
+  body.innerHTML = '';
+  try {
+    const history = JSON.parse(localStorage.getItem('openclaw-chat-history') || '[]');
+    const userMsgs = history.filter(m => m.type === 'user').slice(-20).reverse();
+    if (userMsgs.length === 0) {
+      body.innerHTML = '<div class="history-entry"><div class="h-snippet" style="color:var(--text-dim)">No chat history yet</div></div>';
+      return;
+    }
+    userMsgs.forEach((msg, i) => {
+      const div = document.createElement('div');
+      div.className = 'history-entry';
+      const text = typeof msg.text === 'string' ? msg.text.replace(/<[^>]*>/g, '') : 'Message';
+      div.innerHTML = `<div class="h-snippet">${text.slice(0, 60)}${text.length > 60 ? '...' : ''}</div>`;
+      div.onclick = () => { window.location.href = 'chat.html'; };
+      body.appendChild(div);
+    });
+  } catch {
+    body.innerHTML = '<div class="history-entry"><div class="h-snippet" style="color:var(--text-dim)">No chat history yet</div></div>';
+  }
+}
+
+function toggleHistory() {
+  document.getElementById('historySection').classList.toggle('open');
+}
+
+// ── New Project Modal ────────────────────────────────────
+function openNewProjectModal(folderId) {
+  const select = document.getElementById('modalFolder');
+  select.innerHTML = folders.map(f => `<option value="${f.id}" ${f.id === folderId ? 'selected' : ''}>${f.icon} ${f.name}</option>`).join('');
+  document.getElementById('modalProjName').value = '';
+  document.getElementById('modalProjDesc').value = '';
+  document.getElementById('modalProjRag').value = '';
+  document.getElementById('newProjectModal').classList.add('visible');
+  setTimeout(() => document.getElementById('modalProjName').focus(), 100);
+}
+
+function closeNewProjectModal() {
+  document.getElementById('newProjectModal').classList.remove('visible');
+}
+
+function createProject() {
+  const folderId = document.getElementById('modalFolder').value;
+  const name = document.getElementById('modalProjName').value.trim();
+  const desc = document.getElementById('modalProjDesc').value.trim();
+  const rag = document.getElementById('modalProjRag').value.trim();
+  if (!name) { document.getElementById('modalProjName').focus(); return; }
+
+  const project = {
+    id: 'p' + Date.now(),
+    folderId,
+    name,
+    progress: 0,
+    description: desc,
+    agents: [],
+    prd: '',
+    rag,
+    created: Date.now(),
+  };
+
+  projects.push(project);
+  saveProjects();
+  closeNewProjectModal();
+  renderFolders();
+  renderDashboardProjects();
+  updateStats();
+  addActivity(`New project created: "${name}"`);
+
+  // Open the project's folder
+  const folderEl = document.getElementById('folder-' + folderId);
+  if (folderEl && !folderEl.classList.contains('open')) folderEl.classList.add('open');
+
+  // Trigger Mimi PRD chat
+  triggerMimiPRD(project);
+}
+
+function triggerMimiPRD(project) {
+  // Build a prompt for Mimi and send to chat via localStorage
+  const prompt = `Mimi, I'm starting a new project: "${project.name}"\n\nDescription: ${project.description}\n\n${project.rag ? 'Reference material:\n' + project.rag.slice(0, 500) + '\n\n' : ''}Walk me through building a PRD for this. Ask me the key questions one-by-one:\n1. Goals and objectives\n2. Target user/audience\n3. Main features and functionalities\n4. Technical constraints or integrations\n5. Timeline and milestones\n6. Success metrics\n\nThen compile into a PRD summary and suggest which agents should be assigned.`;
+
+  // Store pending message for chat.html to pick up
+  localStorage.setItem('openclaw-pending-chat', JSON.stringify({
+    message: prompt,
+    projectId: project.id,
+    timestamp: Date.now(),
+  }));
+
+  // Navigate to chat
+  window.location.href = 'chat.html';
+}
+
+// ── Project Detail ───────────────────────────────────────
+function selectProject(projectId) {
+  selectedProjectId = projectId;
+  const p = projects.find(pr => pr.id === projectId);
+  if (!p) return;
+
+  // Highlight agents in the ring
+  highlightAgents(p.agents);
+
+  // Show detail modal
+  document.getElementById('projDetailTitle').textContent = p.name;
+  document.getElementById('projDetailFolder').textContent = (folders.find(f => f.id === p.folderId) || {}).name || '';
+  document.getElementById('projDetailProgress').style.width = p.progress + '%';
+  document.getElementById('projDetailPct').textContent = p.progress + '%';
+  document.getElementById('projDetailDesc').textContent = p.description || 'No description.';
+
+  const agentsDiv = document.getElementById('projDetailAgents');
+  agentsDiv.innerHTML = p.agents.length > 0
+    ? p.agents.map(a => `<span class="proj-agent-badge">${a}</span>`).join('')
+    : '<span style="color:var(--text-dim);font-size:0.72rem;">No agents assigned yet</span>';
+
+  if (p.prd) {
+    document.getElementById('projDetailPrdSection').style.display = 'block';
+    document.getElementById('projDetailPrd').textContent = p.prd;
+  } else {
+    document.getElementById('projDetailPrdSection').style.display = 'none';
+  }
+
+  if (p.rag) {
+    document.getElementById('projDetailRagSection').style.display = 'block';
+    document.getElementById('projDetailRag').textContent = p.rag.slice(0, 2000);
+  } else {
+    document.getElementById('projDetailRagSection').style.display = 'none';
+  }
+
+  document.getElementById('projectDetailModal').classList.add('visible');
+  renderFolders();
+}
+
+function closeProjectDetailModal() {
+  document.getElementById('projectDetailModal').classList.remove('visible');
+  selectedProjectId = null;
+  highlightAgents([]);
+  renderFolders();
+}
+
+function openProjectInChat() {
+  const p = projects.find(pr => pr.id === selectedProjectId);
+  if (!p) return;
+  localStorage.setItem('openclaw-pending-chat', JSON.stringify({
+    message: `Mimi, let's work on the "${p.name}" project. Here's the context:\n\n${p.description}${p.prd ? '\n\nPRD:\n' + p.prd : ''}`,
+    projectId: p.id,
+    timestamp: Date.now(),
+  }));
+  window.location.href = 'chat.html';
+}
+
+function highlightAgents(agentNames) {
+  agents.forEach(a => {
+    const el = document.getElementById('agent-' + a.id);
+    if (el) {
+      if (agentNames.map(n => n.toLowerCase()).includes(a.id)) {
+        el.classList.add('highlighted');
+      } else {
+        el.classList.remove('highlighted');
+      }
+    }
+  });
+}
+
+// ── Place agents in a ring ───────────────────────────────
 function placeAgents() {
   const ring = document.getElementById('hubRing');
   const svg = document.getElementById('connectionSvg');
   const cx = ring.offsetWidth / 2;
   const cy = ring.offsetHeight / 2;
   const radius = Math.min(cx, cy) - 50;
-
   svg.innerHTML = '';
-
   agents.forEach((agent, i) => {
     const angle = (i / agents.length) * 2 * Math.PI - Math.PI / 2;
     const x = cx + radius * Math.cos(angle);
     const y = cy + radius * Math.sin(angle);
-
-    // Connection line to center
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', cx);
-    line.setAttribute('y1', cy);
-    line.setAttribute('x2', x);
-    line.setAttribute('y2', y);
+    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+    line.setAttribute('x2', x); line.setAttribute('y2', y);
     svg.appendChild(line);
-
-    // Agent node
     let node = document.getElementById('agent-' + agent.id);
     if (!node) {
       node = document.createElement('div');
       node.id = 'agent-' + agent.id;
       node.className = 'hub-agent';
       node.onclick = () => showDetail(agent);
-      node.innerHTML = `
-        <div class="agent-icon ${agent.status}" style="border-color: ${agent.color}">${agent.emoji}</div>
-        <div class="agent-name">${agent.name}</div>
-        <div class="agent-role-tag">${agent.role}</div>
-      `;
+      node.innerHTML = `<div class="agent-icon ${agent.status}" style="border-color: ${agent.color}">${agent.emoji}</div><div class="agent-name">${agent.name}</div><div class="agent-role-tag">${agent.role}</div>`;
       ring.appendChild(node);
     }
-
     node.style.left = (x - 35) + 'px';
     node.style.top = (y - 35) + 'px';
   });
 }
 
-// ── Agent Detail Panel ─────────────────────────────────────
 function showDetail(agent) {
   const panel = document.getElementById('agentDetail');
   document.getElementById('detailIcon').innerHTML = agent.emoji;
@@ -580,20 +988,18 @@ function showDetail(agent) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function closeDetail() {
-  document.getElementById('agentDetail').classList.remove('visible');
-}
+function closeDetail() { document.getElementById('agentDetail').classList.remove('visible'); }
 
-// ── Task Management ────────────────────────────────────────
+// ── Task Management ──────────────────────────────────────
 let tasks = [
-  { text: 'Research Pax8 competitor landscape Q1 2026', agent: 'Rex', status: 'active' },
-  { text: 'Draft MSP partner email sequence', agent: 'Cora', status: 'active' },
+  { text: 'Research competitor landscape Q1 2026', agent: 'Rex', status: 'active' },
+  { text: 'Draft partner email sequence', agent: 'Cora', status: 'active' },
   { text: 'Design agent dashboard v1', agent: 'Dax', status: 'done' },
   { text: 'Deploy Mimi Telegram bot to Railway', agent: 'Dev', status: 'done' },
   { text: 'Build monthly budget model', agent: 'Finn', status: 'active' },
   { text: 'Create project kickoff template', agent: 'Pax', status: 'done' },
   { text: 'Plan LinkedIn content calendar', agent: 'Mia', status: 'pending' },
-  { text: 'Integrate agent memory file system', agent: 'Dev', status: 'pending' },
+  { text: 'Integrate Google services (Gmail/Cal/Docs)', agent: 'Dev', status: 'done' },
 ];
 
 function renderTasks() {
@@ -602,11 +1008,7 @@ function renderTasks() {
   tasks.forEach((t, i) => {
     const li = document.createElement('li');
     li.className = 'task-item';
-    li.innerHTML = `
-      <div class="task-status ${t.status}" onclick="cycleStatus(${i})" style="cursor:pointer" title="Click to change status"></div>
-      <span class="task-text ${t.status === 'done' ? 'done-text' : ''}">${t.text}</span>
-      <span class="task-agent">${t.agent}</span>
-    `;
+    li.innerHTML = `<div class="task-status ${t.status}" onclick="cycleStatus(${i})" style="cursor:pointer" title="Click to change status"></div><span class="task-text ${t.status === 'done' ? 'done-text' : ''}">${t.text}</span><span class="task-agent">${t.agent}</span>`;
     list.appendChild(li);
   });
   updateStats();
@@ -616,9 +1018,7 @@ function cycleStatus(i) {
   const order = ['pending', 'active', 'done'];
   const curr = order.indexOf(tasks[i].status);
   tasks[i].status = order[(curr + 1) % 3];
-  if (tasks[i].status === 'done') {
-    addActivity(`${tasks[i].agent} completed: "${tasks[i].text}"`);
-  }
+  if (tasks[i].status === 'done') addActivity(`${tasks[i].agent} completed: "${tasks[i].text}"`);
   renderTasks();
 }
 
@@ -628,66 +1028,49 @@ function addTask() {
   const text = input.value.trim();
   const agent = select.value;
   if (!text || !agent) return;
-
   tasks.unshift({ text, agent, status: 'pending' });
   addActivity(`New task assigned to ${agent}: "${text}"`);
-  input.value = '';
-  select.value = '';
+  input.value = ''; select.value = '';
   renderTasks();
 }
 
-// ── Stats ──────────────────────────────────────────────────
 function updateStats() {
-  document.getElementById('statAgents').textContent = agents.length + 1; // +1 for Mimi
+  document.getElementById('statAgents').textContent = agents.length + 1;
   document.getElementById('statActive').textContent = tasks.filter(t => t.status === 'active').length;
   document.getElementById('statCompleted').textContent = tasks.filter(t => t.status === 'done').length;
+  document.getElementById('statProjects').textContent = projects.length;
 }
 
-// ── Projects ───────────────────────────────────────────────
-const projects = [
-  { name: 'OpenClaw Agent System', progress: 45 },
-  { name: 'Mimi Telegram Integration', progress: 100 },
-  { name: 'Pax8 Q1 Campaign', progress: 15 },
-  { name: 'Side Project: TBD', progress: 5 },
-];
-
-function renderProjects() {
+// ── Dashboard Projects ───────────────────────────────────
+function renderDashboardProjects() {
   const container = document.getElementById('progressList');
   container.innerHTML = '';
-  projects.forEach(p => {
+  // Show top 5 projects by most recent
+  const sorted = [...projects].sort((a, b) => b.created - a.created).slice(0, 5);
+  sorted.forEach(p => {
     container.innerHTML += `
-      <div class="progress-section">
-        <div class="progress-label">
-          <span class="name">${p.name}</span>
-          <span class="pct">${p.progress}%</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: ${p.progress}%"></div>
-        </div>
-      </div>
-    `;
+      <div class="progress-section" style="cursor:pointer" onclick="selectProject('${p.id}')">
+        <div class="progress-label"><span class="name">${p.name}</span><span class="pct">${p.progress}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width: ${p.progress}%"></div></div>
+      </div>`;
   });
 }
 
-// ── Activity Feed ──────────────────────────────────────────
+// ── Activity Feed ────────────────────────────────────────
 const activities = [
+  { time: '13:48', text: 'Google services connected (Gmail/Calendar/Docs)' },
+  { time: '13:30', text: 'Lead Gen Website Builder skill installed' },
   { time: '10:31', text: 'Mimi deployed to Telegram via Railway' },
   { time: '10:25', text: 'Dev pushed mimi_core.py + telegram_bot.py' },
   { time: '10:20', text: 'Pax created OpenClaw agent definitions' },
   { time: '09:58', text: 'Dax designed dashboard layout' },
-  { time: '09:30', text: 'Rex completed Pax8 market scan' },
 ];
 
 function renderActivity() {
   const feed = document.getElementById('activityFeed');
   feed.innerHTML = '';
   activities.slice(0, 10).forEach(a => {
-    feed.innerHTML += `
-      <li class="task-item">
-        <span style="color: var(--text-dim); font-size: 0.7rem; min-width: 45px;">${a.time}</span>
-        <span class="task-text">${a.text}</span>
-      </li>
-    `;
+    feed.innerHTML += `<li class="task-item"><span style="color:var(--text-dim);font-size:0.7rem;min-width:45px;">${a.time}</span><span class="task-text">${a.text}</span></li>`;
   });
 }
 
@@ -698,12 +1081,35 @@ function addActivity(text) {
   renderActivity();
 }
 
-// ── Init ───────────────────────────────────────────────────
+// ── Cross-page sync via localStorage events ──────────────
+window.addEventListener('storage', (e) => {
+  if (e.key === PROJECTS_KEY) {
+    projects = loadProjects();
+    renderFolders();
+    renderDashboardProjects();
+    updateStats();
+  }
+  if (e.key === 'openclaw-chat-history') {
+    renderHistory();
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────
 placeAgents();
 renderTasks();
-renderProjects();
+renderDashboardProjects();
 renderActivity();
+renderFolders();
+renderHistory();
 window.addEventListener('resize', placeAgents);
+
+// Open first folder by default
+if (folders.length > 0) {
+  setTimeout(() => {
+    const firstFolder = document.getElementById('folder-' + folders[0].id);
+    if (firstFolder) firstFolder.classList.add('open');
+  }, 100);
+}
 </script>
 
 </body>
