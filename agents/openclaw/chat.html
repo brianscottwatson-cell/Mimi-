@@ -265,6 +265,78 @@
   .send-btn:hover { opacity: 0.85; }
   .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+  .upload-btn {
+    padding: 0 0.6rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    align-self: flex-end;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-btn:hover { border-color: var(--neon-blue); color: var(--neon-blue); }
+
+  /* ── File Preview ──────────────────────────────────── */
+  .file-preview-bar {
+    display: none;
+    padding: 0.4rem 1.2rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .file-preview-bar.visible { display: flex; }
+
+  .file-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 4px 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: var(--text);
+    animation: fadeIn 0.2s ease;
+  }
+
+  .file-chip img {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .file-chip .file-icon {
+    font-size: 1rem;
+  }
+
+  .file-chip .remove-file {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 2px;
+    line-height: 1;
+  }
+
+  .file-chip .remove-file:hover { color: var(--neon-pink); }
+
+  .message .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .message .msg-images img { max-width: 200px; max-height: 160px; border-radius: 6px; border: 1px solid var(--border); }
+  .message .msg-files { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .message .msg-files span { font-size: 0.7rem; background: var(--surface-2); padding: 2px 6px; border-radius: 4px; color: var(--text-dim); }
+
   /* ── Scrollbar ────────────────────────────────────── */
   .chat-area::-webkit-scrollbar { width: 6px; }
   .chat-area::-webkit-scrollbar-track { background: transparent; }
@@ -318,7 +390,12 @@
   </div>
 </div>
 
+<div class="file-preview-bar" id="filePreviewBar"></div>
+
 <div class="input-area">
+  <input type="file" id="fileInput" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.xml,.html,.py,.js,.ts,.log" style="display:none"
+    onchange="handleFileSelect(this.files)">
+  <button class="upload-btn" onclick="document.getElementById('fileInput').click()" title="Attach files or images">&#128206;</button>
   <textarea id="msgInput" placeholder="Message Mimi or an agent..." rows="1"
     onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
   <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
@@ -456,28 +533,136 @@ function scrollToBottom() {
   area.scrollTop = area.scrollHeight;
 }
 
+// ── File Handling ──────────────────────────────────────────
+let pendingFiles = [];
+
+function handleFileSelect(fileList) {
+  for (const file of fileList) {
+    if (file.size > 20 * 1024 * 1024) {
+      addMessage(`File "${file.name}" is too large (max 20 MB).`, 'error');
+      continue;
+    }
+    pendingFiles.push(file);
+  }
+  document.getElementById('fileInput').value = '';
+  renderFilePreviews();
+}
+
+function removeFile(index) {
+  pendingFiles.splice(index, 1);
+  renderFilePreviews();
+}
+
+function renderFilePreviews() {
+  const bar = document.getElementById('filePreviewBar');
+  bar.innerHTML = '';
+  if (pendingFiles.length === 0) {
+    bar.classList.remove('visible');
+    return;
+  }
+  bar.classList.add('visible');
+  pendingFiles.forEach((file, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    if (file.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      chip.appendChild(img);
+    } else {
+      const icon = document.createElement('span');
+      icon.className = 'file-icon';
+      icon.textContent = '\u{1F4C4}';
+      chip.appendChild(icon);
+    }
+    const name = document.createElement('span');
+    name.textContent = file.name.length > 20 ? file.name.slice(0, 18) + '...' : file.name;
+    chip.appendChild(name);
+    const rm = document.createElement('button');
+    rm.className = 'remove-file';
+    rm.textContent = '\u00D7';
+    rm.onclick = () => removeFile(i);
+    chip.appendChild(rm);
+    bar.appendChild(chip);
+  });
+}
+
+// Drag and drop on chat area
+const chatAreaEl = document.getElementById('chatArea');
+chatAreaEl.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+chatAreaEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files);
+});
+
 // ── Send ───────────────────────────────────────────────────
 async function sendMessage() {
   const input = document.getElementById('msgInput');
   const btn = document.getElementById('sendBtn');
   const text = input.value.trim();
-  if (!text) return;
+  const hasFiles = pendingFiles.length > 0;
+  if (!text && !hasFiles) return;
 
-  addMessage(text, 'user');
+  // Build user message display with file previews
+  const fileNames = pendingFiles.map(f => f.name);
+  let displayHtml = '';
+  const imageFiles = pendingFiles.filter(f => f.type.startsWith('image/'));
+  const docFiles = pendingFiles.filter(f => !f.type.startsWith('image/'));
+  if (imageFiles.length) {
+    displayHtml += '<div class="msg-images">';
+    imageFiles.forEach(f => {
+      displayHtml += `<img src="${URL.createObjectURL(f)}" alt="${f.name}">`;
+    });
+    displayHtml += '</div>';
+  }
+  if (docFiles.length) {
+    displayHtml += '<div class="msg-files">';
+    docFiles.forEach(f => { displayHtml += `<span>\u{1F4C4} ${f.name}</span>`; });
+    displayHtml += '</div>';
+  }
+  if (text) displayHtml += text;
+
+  // Show user message
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'message user';
+  div.innerHTML = displayHtml;
+  area.appendChild(div);
+  scrollToBottom();
+  chatHistory.push({ text: displayHtml, type: 'user' });
+  saveHistory();
+
+  // Capture files before clearing
+  const filesToSend = [...pendingFiles];
+  pendingFiles = [];
+  renderFilePreviews();
   input.value = '';
   input.style.height = 'auto';
   btn.disabled = true;
   showTyping();
 
   try {
-    const resp = await fetch(config.apiUrl + '/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Netrunner-Token': config.authToken,
-      },
-      body: JSON.stringify({ message: text }),
-    });
+    let resp;
+    if (filesToSend.length > 0) {
+      // Multipart upload
+      const formData = new FormData();
+      if (text) formData.append('message', text);
+      filesToSend.forEach(f => formData.append('files', f));
+      resp = await fetch(config.apiUrl + '/api/chat', {
+        method: 'POST',
+        headers: { 'X-Netrunner-Token': config.authToken },
+        body: formData,
+      });
+    } else {
+      // JSON text only
+      resp = await fetch(config.apiUrl + '/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Netrunner-Token': config.authToken,
+        },
+        body: JSON.stringify({ message: text }),
+      });
+    }
 
     hideTyping();
 
@@ -517,6 +702,23 @@ async function clearChat() {
 document.getElementById('msgInput').addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// ── Paste image support (Ctrl/Cmd+V) ───────────────────────
+document.getElementById('msgInput').addEventListener('paste', function(e) {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (file) {
+        const named = new File([file], `pasted-image-${Date.now()}.png`, { type: file.type });
+        handleFileSelect([named]);
+      }
+      return;
+    }
+  }
 });
 </script>
 
