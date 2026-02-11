@@ -40,3 +40,9 @@ MANIFEST
 # Environment variables
 .env
 .env.local
+
+# Google OAuth credentials and tokens (sensitive)
+google_credentials.json
+google_token.json
+token.json
+client_secret*.json

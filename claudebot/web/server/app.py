@@ -1,6 +1,8 @@
 import os
+import json as _json
 from datetime import datetime, timezone
 
+import anthropic
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 
@@ -14,6 +16,18 @@ from mimi_core import (
     XAI_API_KEY, XAI_VOICE, XAI_TTS_SAMPLE_RATE,
     ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID,
 )
+
+# Google services (optional — graceful if not authed)
+try:
+    from google_services import (
+        gmail_check_inbox, gmail_read_message, gmail_send, gmail_reply,
+        calendar_list_events, calendar_create_event, calendar_delete_event,
+        docs_create, docs_read, docs_append, drive_list_files,
+        google_status,
+    )
+    GOOGLE_AVAILABLE = google_status().get("authenticated", False)
+except Exception:
+    GOOGLE_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -52,6 +66,219 @@ def _build_messages():
         content = entry.get("api_content", entry["content"])
         messages.append({"role": role, "content": content})
     return messages
+
+# ---------------------------------------------------------------------------
+# Google Service Tools for Claude
+# ---------------------------------------------------------------------------
+
+GOOGLE_TOOLS = [
+    {
+        "name": "gmail_check_inbox",
+        "description": "Check Gmail inbox for recent messages. Returns subject, sender, date, and snippet for each.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "max_results": {"type": "integer", "description": "Max emails to return (default 5)", "default": 5},
+                "query": {"type": "string", "description": "Gmail search query (default 'is:unread')", "default": "is:unread"},
+            },
+        },
+    },
+    {
+        "name": "gmail_read_message",
+        "description": "Read the full content of a specific email by its ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"message_id": {"type": "string", "description": "The Gmail message ID"}},
+            "required": ["message_id"],
+        },
+    },
+    {
+        "name": "gmail_send",
+        "description": "Send a new email from msmimibot2@gmail.com.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "to": {"type": "string", "description": "Recipient email address"},
+                "subject": {"type": "string", "description": "Email subject line"},
+                "body": {"type": "string", "description": "Email body text"},
+            },
+            "required": ["to", "subject", "body"],
+        },
+    },
+    {
+        "name": "gmail_reply",
+        "description": "Reply to an existing email thread.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message_id": {"type": "string", "description": "ID of the message to reply to"},
+                "body": {"type": "string", "description": "Reply body text"},
+            },
+            "required": ["message_id", "body"],
+        },
+    },
+    {
+        "name": "calendar_list_events",
+        "description": "List upcoming Google Calendar events.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days_ahead": {"type": "integer", "description": "Number of days to look ahead (default 7)", "default": 7},
+                "max_results": {"type": "integer", "description": "Max events to return (default 10)", "default": 10},
+            },
+        },
+    },
+    {
+        "name": "calendar_create_event",
+        "description": "Create a new Google Calendar event.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string", "description": "Event title"},
+                "start_time": {"type": "string", "description": "Start time in ISO format (e.g. 2026-02-15T10:00:00-07:00)"},
+                "end_time": {"type": "string", "description": "End time in ISO format"},
+                "description": {"type": "string", "description": "Event description (optional)"},
+                "location": {"type": "string", "description": "Event location (optional)"},
+            },
+            "required": ["summary", "start_time", "end_time"],
+        },
+    },
+    {
+        "name": "calendar_delete_event",
+        "description": "Delete a Google Calendar event by ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"event_id": {"type": "string", "description": "The calendar event ID"}},
+            "required": ["event_id"],
+        },
+    },
+    {
+        "name": "docs_create",
+        "description": "Create a new Google Doc.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Document title"},
+                "body_text": {"type": "string", "description": "Initial text content (optional)"},
+            },
+            "required": ["title"],
+        },
+    },
+    {
+        "name": "docs_read",
+        "description": "Read the text content of an existing Google Doc by its document ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"document_id": {"type": "string", "description": "The Google Doc ID"}},
+            "required": ["document_id"],
+        },
+    },
+    {
+        "name": "docs_append",
+        "description": "Append text to the end of an existing Google Doc.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "document_id": {"type": "string", "description": "The Google Doc ID"},
+                "text": {"type": "string", "description": "Text to append"},
+            },
+            "required": ["document_id", "text"],
+        },
+    },
+    {
+        "name": "drive_list_files",
+        "description": "List files in Google Drive.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Drive search query (optional)"},
+                "max_results": {"type": "integer", "description": "Max files to return (default 10)", "default": 10},
+            },
+        },
+    },
+]
+
+# Map tool names to functions
+TOOL_HANDLERS = {}
+if GOOGLE_AVAILABLE:
+    TOOL_HANDLERS = {
+        "gmail_check_inbox": lambda **kw: gmail_check_inbox(**kw),
+        "gmail_read_message": lambda **kw: gmail_read_message(**kw),
+        "gmail_send": lambda **kw: gmail_send(**kw),
+        "gmail_reply": lambda **kw: gmail_reply(**kw),
+        "calendar_list_events": lambda **kw: calendar_list_events(**kw),
+        "calendar_create_event": lambda **kw: calendar_create_event(**kw),
+        "calendar_delete_event": lambda **kw: calendar_delete_event(**kw),
+        "docs_create": lambda **kw: docs_create(**kw),
+        "docs_read": lambda **kw: docs_read(**kw),
+        "docs_append": lambda **kw: docs_append(**kw),
+        "drive_list_files": lambda **kw: drive_list_files(**kw),
+    }
+
+
+def _chat_with_tools(messages):
+    """Chat with Mimi using tool use for Google services. Handles tool call loops."""
+    tools = GOOGLE_TOOLS if GOOGLE_AVAILABLE else []
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
+        messages=messages,
+        tools=tools if tools else anthropic.NOT_GIVEN,
+    )
+
+    # Handle tool use loop (max 5 rounds to prevent infinite loops)
+    for _ in range(5):
+        if response.stop_reason != "tool_use":
+            break
+
+        # Extract text and tool calls from response
+        assistant_content = response.content
+        tool_results = []
+
+        for block in assistant_content:
+            if block.type == "tool_use":
+                tool_name = block.name
+                tool_input = block.input
+                handler = TOOL_HANDLERS.get(tool_name)
+                if handler:
+                    try:
+                        result = handler(**tool_input)
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": _json.dumps(result, default=str, ensure_ascii=False),
+                        })
+                    except Exception as e:
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": f"Error: {e}",
+                            "is_error": True,
+                        })
+                else:
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": f"Tool '{tool_name}' not available.",
+                        "is_error": True,
+                    })
+
+        # Continue conversation with tool results
+        messages.append({"role": "assistant", "content": assistant_content})
+        messages.append({"role": "user", "content": tool_results})
+
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=2048,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+            tools=tools,
+        )
+
+    # Extract final text response
+    text_parts = [b.text for b in response.content if hasattr(b, "text")]
+    return "\n".join(text_parts) if text_parts else "Done."
 
 def _process_uploaded_files(files):
     """Process uploaded files into Claude API content blocks."""
@@ -134,10 +361,13 @@ def chat():
         "timestamp": now,
     })
 
-    # Call Claude API
+    # Call Claude API (with Google tools if available)
     try:
         messages = _build_messages()
-        reply = chat_with_mimi(messages)
+        if GOOGLE_AVAILABLE:
+            reply = _chat_with_tools(messages)
+        else:
+            reply = chat_with_mimi(messages)
     except Exception as e:
         reply = f"[LINK ERROR] Something went sideways: {e}"
 
