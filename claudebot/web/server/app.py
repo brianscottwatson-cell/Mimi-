@@ -31,7 +31,11 @@ except Exception:
     GOOGLE_AVAILABLE = False
 
 # Web search (free, no API key)
-from web_search import web_search, web_news, web_answers
+from web_search import (
+    web_search, web_news, web_answers,
+    reddit_search, reddit_read_thread,
+    x_search, x_news,
+)
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -164,12 +168,66 @@ WEB_TOOLS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "reddit_search",
+        "description": "Search Reddit for posts and discussions. Great for product reviews, opinions, recommendations, troubleshooting, and community discussions. Can filter by subreddit.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "subreddit": {"type": "string", "description": "Optional: limit to a specific subreddit (e.g. 'fitness', 'technology')"},
+                "sort": {"type": "string", "enum": ["relevance", "hot", "top", "new", "comments"], "description": "Sort order (default: relevance)"},
+                "max_results": {"type": "integer", "description": "Max results (default 8)", "default": 8},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "reddit_read_thread",
+        "description": "Read a specific Reddit thread including top comments. Pass a full Reddit URL from a previous search result.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "Full Reddit thread URL"},
+                "max_comments": {"type": "integer", "description": "Max comments to read (default 10)", "default": 10},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "x_search",
+        "description": "Search X (Twitter) for posts, takes, and discussions. Good for trending topics, real-time reactions, public figures' statements, and industry chatter.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "max_results": {"type": "integer", "description": "Max results (default 8)", "default": 8},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "x_news",
+        "description": "Search for news coverage of X/Twitter discussions and viral posts on a topic.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Topic to find X-related news about"},
+                "max_results": {"type": "integer", "description": "Max results (default 5)", "default": 5},
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 WEB_HANDLERS = {
     "web_search": lambda **kw: web_search(**kw),
     "web_news": lambda **kw: web_news(**kw),
     "web_answers": lambda **kw: web_answers(**kw),
+    "reddit_search": lambda **kw: reddit_search(**kw),
+    "reddit_read_thread": lambda **kw: reddit_read_thread(**kw),
+    "x_search": lambda **kw: x_search(**kw),
+    "x_news": lambda **kw: x_news(**kw),
 }
 
 # ---------------------------------------------------------------------------
