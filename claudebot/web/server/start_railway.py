@@ -6,40 +6,33 @@ Runs both the Flask web service (on $PORT) and the Telegram bot in a background 
 
 import os
 import sys
+import asyncio
 import threading
 
 
 def run_telegram_bot():
-    """Start the Telegram bot in a background thread."""
+    """Start the Telegram bot in a background thread with its own event loop."""
     try:
-        # Import here to avoid blocking Flask startup if Telegram config is missing
-        from telegram_bot import main as tg_main
-        tg_main()
+        import importlib
+        telegram_bot = importlib.import_module("telegram_bot")
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        telegram_bot.main()
     except Exception as e:
         print(f"[start_railway] Telegram bot failed: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
 
 
 def run_flask():
-    """Start the Flask/gunicorn web service."""
+    """Start the Flask web service."""
     port = int(os.environ.get("PORT", 8000))
 
-    # Try gunicorn first (production), fall back to Flask dev server
-    try:
-        from gunicorn.app.wsgiapp import WSGIApplication
-
-        sys.argv = [
-            "gunicorn",
-            "app:app",
-            "--bind", f"0.0.0.0:{port}",
-            "--workers", "2",
-            "--timeout", "120",
-            "--access-logfile", "-",
-        ]
-        WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
-    except ImportError:
-        print("[start_railway] gunicorn not found, using Flask dev server")
-        from app import app
-        app.run(host="0.0.0.0", port=port)
+    # Use Flask dev server directly — gunicorn's forking model kills
+    # the Telegram bot thread, so we avoid it for this combined launcher.
+    from app import app
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
 if __name__ == "__main__":
@@ -52,6 +45,7 @@ if __name__ == "__main__":
     else:
         print("[start_railway] No TELEGRAM_BOT_TOKEN set, skipping Telegram bot.")
 
-    # Start Flask web service (blocking)
-    print(f"[start_railway] Starting Flask on port {os.environ.get('PORT', 8000)}...")
+    # Start Flask web service (blocking — must be on main thread)
+    port = os.environ.get("PORT", 8000)
+    print(f"[start_railway] Starting Flask on port {port}...")
     run_flask()
