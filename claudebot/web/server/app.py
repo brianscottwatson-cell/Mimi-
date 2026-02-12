@@ -37,9 +37,48 @@ from web_search import web_search, web_news, web_answers
 # ---------------------------------------------------------------------------
 
 CLIENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "client"))
+USAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage_stats.json")
 
 app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
 CORS(app)
+
+# ---------------------------------------------------------------------------
+# Token usage tracking
+# ---------------------------------------------------------------------------
+
+# Pricing per million tokens (as of Feb 2026)
+MODEL_PRICING = {
+    "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
+    "claude-opus-4-6":            {"input": 15.0, "output": 75.0},
+    "claude-haiku-4-5-20251001":  {"input": 0.80, "output": 4.0},
+}
+
+def _load_usage():
+    try:
+        with open(USAGE_FILE, "r") as f:
+            return _json.load(f)
+    except Exception:
+        return {"input_tokens": 0, "output_tokens": 0, "requests": 0, "cost_usd": 0.0}
+
+def _save_usage(usage):
+    with open(USAGE_FILE, "w") as f:
+        _json.dump(usage, f)
+
+def _track_tokens(response):
+    """Extract token usage from a Claude API response and accumulate."""
+    usage_data = _load_usage()
+    if hasattr(response, "usage"):
+        inp = response.usage.input_tokens or 0
+        out = response.usage.output_tokens or 0
+        usage_data["input_tokens"] += inp
+        usage_data["output_tokens"] += out
+        usage_data["requests"] += 1
+        # Calculate cost
+        pricing = MODEL_PRICING.get(MODEL, {"input": 3.0, "output": 15.0})
+        cost = (inp / 1_000_000) * pricing["input"] + (out / 1_000_000) * pricing["output"]
+        usage_data["cost_usd"] = round(usage_data["cost_usd"] + cost, 6)
+        _save_usage(usage_data)
+    return usage_data
 
 # ---------------------------------------------------------------------------
 # In-memory conversation history
@@ -279,6 +318,7 @@ def _chat_with_tools(messages):
         messages=messages,
         tools=tools if tools else anthropic.NOT_GIVEN,
     )
+    _track_tokens(response)
 
     # Handle tool use loop (max 5 rounds to prevent infinite loops)
     for _ in range(5):
@@ -328,6 +368,7 @@ def _chat_with_tools(messages):
             messages=messages,
             tools=tools,
         )
+        _track_tokens(response)
 
     # Extract final text response
     text_parts = [b.text for b in response.content if hasattr(b, "text")]
@@ -522,6 +563,29 @@ def tts_status():
         "elevenlabs": bool(ELEVENLABS_API_KEY),
         "elevenlabs_voice_id": ELEVENLABS_VOICE_ID if ELEVENLABS_API_KEY else None,
     })
+
+
+# ---------------------------------------------------------------------------
+# Usage stats
+# ---------------------------------------------------------------------------
+
+@app.route("/api/usage", methods=["GET"])
+def usage_stats():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    usage = _load_usage()
+    usage["model"] = MODEL
+    return jsonify(usage)
+
+
+@app.route("/api/usage/reset", methods=["POST"])
+def usage_reset():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    _save_usage({"input_tokens": 0, "output_tokens": 0, "requests": 0, "cost_usd": 0.0})
+    return jsonify({"status": "Usage stats reset."})
 
 
 # ---------------------------------------------------------------------------

@@ -545,8 +545,44 @@
   .assign-form button { padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); border: none; border-radius: 4px; color: white; font-family: inherit; font-size: 0.75rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
   .assign-form button:hover { opacity: 0.85; }
 
-  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 0 2rem; max-width: 1200px; margin: 0 auto 1rem; }
-  @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+  .stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; padding: 0 2rem; max-width: 1200px; margin: 0 auto 1rem; }
+  @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
+  .token-detail-popup {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--surface);
+    border: 1px solid var(--neon-purple);
+    border-radius: 10px;
+    padding: 1.5rem;
+    z-index: 2001;
+    min-width: 300px;
+    box-shadow: 0 0 40px rgba(168,85,247,0.3);
+  }
+
+  .token-detail-popup.visible { display: block; }
+
+  .token-detail-popup h3 {
+    font-size: 0.9rem;
+    color: var(--neon-purple);
+    margin-bottom: 1rem;
+  }
+
+  .token-detail-popup .td-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(42,42,64,0.4);
+  }
+
+  .token-detail-popup .td-row:last-child { border-bottom: none; }
+  .token-detail-popup .td-label { color: var(--text-dim); }
+  .token-detail-popup .td-val { color: var(--neon-blue); font-weight: 600; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
   .stat-value { font-size: 1.6rem; font-weight: bold; background: linear-gradient(135deg, var(--neon-pink), var(--neon-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .stat-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.2rem; }
@@ -599,6 +635,11 @@
   <div class="stat-card"><div class="stat-value" id="statActive">3</div><div class="stat-label">Active Tasks</div></div>
   <div class="stat-card"><div class="stat-value" id="statCompleted">12</div><div class="stat-label">Completed</div></div>
   <div class="stat-card"><div class="stat-value" id="statProjects">2</div><div class="stat-label">Projects</div></div>
+  <div class="stat-card" style="cursor:pointer" onclick="toggleTokenDetail()" title="Click for details">
+    <div class="stat-value" id="statCost">$0.00</div>
+    <div class="stat-label">Token Spend</div>
+  </div>
+  <div class="stat-card"><div class="stat-value" id="statRequests">0</div><div class="stat-label">API Calls</div></div>
 </div>
 
 <div class="dashboard">
@@ -637,6 +678,18 @@
 </div>
 
 </div><!-- end main-content -->
+
+<!-- ── Token Detail Popup ────────────────────────────────────── -->
+<div class="token-detail-popup" id="tokenDetailPopup" onclick="this.classList.remove('visible')">
+  <h3>Token Usage Breakdown</h3>
+  <div class="td-row"><span class="td-label">Model</span><span class="td-val" id="tdModel">—</span></div>
+  <div class="td-row"><span class="td-label">Input Tokens</span><span class="td-val" id="tdInput">0</span></div>
+  <div class="td-row"><span class="td-label">Output Tokens</span><span class="td-val" id="tdOutput">0</span></div>
+  <div class="td-row"><span class="td-label">Total Tokens</span><span class="td-val" id="tdTotal">0</span></div>
+  <div class="td-row"><span class="td-label">API Calls</span><span class="td-val" id="tdRequests">0</span></div>
+  <div class="td-row"><span class="td-label">Total Cost</span><span class="td-val" id="tdCost">$0.00</span></div>
+  <div style="text-align:center;margin-top:1rem;font-size:0.65rem;color:var(--text-dim);">Click anywhere to close</div>
+</div>
 
 <!-- ── New Project Modal ────────────────────────────────────── -->
 <div class="modal-backdrop" id="newProjectModal">
@@ -1093,6 +1146,42 @@ window.addEventListener('storage', (e) => {
     renderHistory();
   }
 });
+
+// ── Token Usage Tracking ─────────────────────────────────
+function fetchUsageStats() {
+  // Read API config from chat's localStorage
+  let apiUrl = 'http://localhost:8000';
+  let authToken = 'openclaw';
+  try {
+    const chatConfig = JSON.parse(localStorage.getItem('openclaw-chat-config') || '{}');
+    if (chatConfig.apiUrl) apiUrl = chatConfig.apiUrl;
+    if (chatConfig.authToken) authToken = chatConfig.authToken;
+  } catch {}
+
+  fetch(apiUrl + '/api/usage', { headers: { 'X-Netrunner-Token': authToken } })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      document.getElementById('statCost').textContent = '$' + data.cost_usd.toFixed(2);
+      document.getElementById('statRequests').textContent = data.requests;
+      // Detail popup
+      document.getElementById('tdModel').textContent = data.model || '—';
+      document.getElementById('tdInput').textContent = data.input_tokens.toLocaleString();
+      document.getElementById('tdOutput').textContent = data.output_tokens.toLocaleString();
+      document.getElementById('tdTotal').textContent = (data.input_tokens + data.output_tokens).toLocaleString();
+      document.getElementById('tdRequests').textContent = data.requests;
+      document.getElementById('tdCost').textContent = '$' + data.cost_usd.toFixed(4);
+    })
+    .catch(() => {});
+}
+
+function toggleTokenDetail() {
+  document.getElementById('tokenDetailPopup').classList.toggle('visible');
+}
+
+// Poll usage stats every 30 seconds
+fetchUsageStats();
+setInterval(fetchUsageStats, 30000);
 
 // ── Init ─────────────────────────────────────────────────
 placeAgents();
