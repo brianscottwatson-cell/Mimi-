@@ -29,6 +29,9 @@ try:
 except Exception:
     GOOGLE_AVAILABLE = False
 
+# Web search (free, no API key)
+from web_search import web_search, web_news, web_answers
+
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
@@ -66,6 +69,54 @@ def _build_messages():
         content = entry.get("api_content", entry["content"])
         messages.append({"role": role, "content": content})
     return messages
+
+# ---------------------------------------------------------------------------
+# Web Search Tools for Claude
+# ---------------------------------------------------------------------------
+
+WEB_TOOLS = [
+    {
+        "name": "web_search",
+        "description": "Search the web for current information. Returns titles, URLs, and snippets. Use for any question about current events, prices, people, companies, or facts you don't know.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query"},
+                "max_results": {"type": "integer", "description": "Max results to return (default 5)", "default": 5},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "web_news",
+        "description": "Search for recent news articles. Use for current events, breaking news, industry updates.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "News search query"},
+                "max_results": {"type": "integer", "description": "Max results (default 5)", "default": 5},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "web_answers",
+        "description": "Get instant answers for factual queries like stock prices, weather, definitions, calculations, conversions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The question or lookup query"},
+            },
+            "required": ["query"],
+        },
+    },
+]
+
+WEB_HANDLERS = {
+    "web_search": lambda **kw: web_search(**kw),
+    "web_news": lambda **kw: web_news(**kw),
+    "web_answers": lambda **kw: web_answers(**kw),
+}
 
 # ---------------------------------------------------------------------------
 # Google Service Tools for Claude
@@ -199,9 +250,9 @@ GOOGLE_TOOLS = [
 ]
 
 # Map tool names to functions
-TOOL_HANDLERS = {}
+TOOL_HANDLERS = dict(WEB_HANDLERS)  # Web search always available
 if GOOGLE_AVAILABLE:
-    TOOL_HANDLERS = {
+    TOOL_HANDLERS.update({
         "gmail_check_inbox": lambda **kw: gmail_check_inbox(**kw),
         "gmail_read_message": lambda **kw: gmail_read_message(**kw),
         "gmail_send": lambda **kw: gmail_send(**kw),
@@ -213,12 +264,14 @@ if GOOGLE_AVAILABLE:
         "docs_read": lambda **kw: docs_read(**kw),
         "docs_append": lambda **kw: docs_append(**kw),
         "drive_list_files": lambda **kw: drive_list_files(**kw),
-    }
+    })
 
 
 def _chat_with_tools(messages):
-    """Chat with Mimi using tool use for Google services. Handles tool call loops."""
-    tools = GOOGLE_TOOLS if GOOGLE_AVAILABLE else []
+    """Chat with Mimi using tool use for web search + Google services. Handles tool call loops."""
+    tools = list(WEB_TOOLS)  # Web search always available
+    if GOOGLE_AVAILABLE:
+        tools.extend(GOOGLE_TOOLS)
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -361,13 +414,10 @@ def chat():
         "timestamp": now,
     })
 
-    # Call Claude API (with Google tools if available)
+    # Call Claude API with tools (web search always available, Google if authed)
     try:
         messages = _build_messages()
-        if GOOGLE_AVAILABLE:
-            reply = _chat_with_tools(messages)
-        else:
-            reply = chat_with_mimi(messages)
+        reply = _chat_with_tools(messages)
     except Exception as e:
         reply = f"[LINK ERROR] Something went sideways: {e}"
 
