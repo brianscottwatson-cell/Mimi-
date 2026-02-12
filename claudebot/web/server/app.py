@@ -43,6 +43,7 @@ from web_search import (
 
 CLIENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "client"))
 USAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage_stats.json")
+DASHBOARD_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard_data.json")
 
 app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
 CORS(app)
@@ -84,6 +85,66 @@ def _track_tokens(response):
         usage_data["cost_usd"] = round(usage_data["cost_usd"] + cost, 6)
         _save_usage(usage_data)
     return usage_data
+
+# ---------------------------------------------------------------------------
+# Dashboard data persistence
+# ---------------------------------------------------------------------------
+
+_DEFAULT_DASHBOARD = {
+    "folders": [
+        {"id": "personal", "name": "Personal Life", "icon": "\U0001f3e0"},
+        {"id": "work", "name": "Work", "icon": "\U0001f4bc"},
+        {"id": "side", "name": "Side Projects", "icon": "\U0001f680"},
+    ],
+    "projects": [
+        {"id": "p1", "folderId": "personal", "name": "Health & Recomp Tracker", "progress": 30, "description": "Track daily macros, workouts, and body recomp progress.", "agents": ["Dev", "Rex"], "prd": "", "rag": "", "created": 1707700000000},
+        {"id": "p2", "folderId": "work", "name": "OpenClaw Agent System", "progress": 45, "description": "Build functional multi-agent team with dashboard.", "agents": ["Dev", "Dax", "Pax"], "prd": "", "rag": "", "created": 1707700000001},
+        {"id": "p3", "folderId": "work", "name": "Mimi Telegram Integration", "progress": 100, "description": "Deploy Mimi as a Telegram bot on Railway.", "agents": ["Dev"], "prd": "", "rag": "", "created": 1707700000002},
+        {"id": "p4", "folderId": "side", "name": "Lead Gen Website Builder", "progress": 10, "description": "Skill for building local service lead gen websites.", "agents": ["Dev", "Dax", "Cora", "Mia", "Rex"], "prd": "", "rag": "", "created": 1707700000003},
+    ],
+    "tasks": [
+        {"text": "Research competitor landscape Q1 2026", "agent": "Rex", "status": "active"},
+        {"text": "Draft partner email sequence", "agent": "Cora", "status": "active"},
+        {"text": "Design agent dashboard v1", "agent": "Dax", "status": "done"},
+        {"text": "Deploy Mimi Telegram bot to Railway", "agent": "Dev", "status": "done"},
+        {"text": "Build monthly budget model", "agent": "Finn", "status": "active"},
+        {"text": "Create project kickoff template", "agent": "Pax", "status": "done"},
+        {"text": "Plan LinkedIn content calendar", "agent": "Mia", "status": "pending"},
+        {"text": "Integrate Google services (Gmail/Cal/Docs)", "agent": "Dev", "status": "done"},
+        {"text": "Add Reddit & X research tools", "agent": "Dev", "status": "done"},
+    ],
+    "activity": [
+        {"time": "14:15", "text": "Reddit & X research tools added to all agents"},
+        {"time": "13:48", "text": "Google services connected (Gmail/Calendar/Docs)"},
+        {"time": "13:30", "text": "Lead Gen Website Builder skill installed"},
+        {"time": "10:31", "text": "Mimi deployed to Telegram via Railway"},
+        {"time": "10:25", "text": "Dev pushed mimi_core.py + telegram_bot.py"},
+        {"time": "10:20", "text": "Pax created OpenClaw agent definitions"},
+        {"time": "09:58", "text": "Dax designed dashboard layout"},
+    ],
+}
+
+def _load_dashboard():
+    try:
+        with open(DASHBOARD_FILE, "r") as f:
+            return _json.load(f)
+    except Exception:
+        data = _json.loads(_json.dumps(_DEFAULT_DASHBOARD))
+        _save_dashboard(data)
+        return data
+
+def _save_dashboard(data):
+    with open(DASHBOARD_FILE, "w") as f:
+        _json.dump(data, f, ensure_ascii=False, indent=2)
+
+def _log_activity(text):
+    """Append an entry to the dashboard activity feed."""
+    data = _load_dashboard()
+    now = datetime.now(timezone.utc)
+    time_str = now.strftime("%H:%M")
+    data["activity"].insert(0, {"time": time_str, "text": text})
+    data["activity"] = data["activity"][:50]  # keep last 50
+    _save_dashboard(data)
 
 # ---------------------------------------------------------------------------
 # In-memory conversation history
@@ -361,6 +422,142 @@ GOOGLE_TOOLS = [
     },
 ]
 
+# ---------------------------------------------------------------------------
+# Dashboard Tools for Claude (so Mimi can manage the dashboard)
+# ---------------------------------------------------------------------------
+
+DASHBOARD_TOOLS = [
+    {
+        "name": "dashboard_create_project",
+        "description": "Create a new project on the OpenClaw dashboard. Use when Brian asks to start a new project or initiative.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Project name"},
+                "folder": {"type": "string", "description": "Folder ID: 'personal', 'work', or 'side'", "default": "side"},
+                "description": {"type": "string", "description": "Project description"},
+                "agents": {"type": "array", "items": {"type": "string"}, "description": "Agent names to assign (e.g. ['Dev', 'Rex'])"},
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "dashboard_update_project",
+        "description": "Update an existing project on the dashboard (progress, agents, PRD, status).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Project ID (e.g. 'p1')"},
+                "progress": {"type": "integer", "description": "Progress percentage (0-100)"},
+                "agents": {"type": "array", "items": {"type": "string"}, "description": "Updated agent list"},
+                "prd": {"type": "string", "description": "PRD summary text"},
+                "status": {"type": "string", "description": "Project status note"},
+                "description": {"type": "string", "description": "Updated description"},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "dashboard_create_task",
+        "description": "Create a new task on the dashboard. Use when Brian or an agent needs a new task tracked.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Task description"},
+                "agent": {"type": "string", "description": "Agent to assign (Rex, Cora, Dax, Dev, Finn, Pax, Mia, Vale)"},
+                "status": {"type": "string", "enum": ["pending", "active", "done"], "description": "Task status (default: pending)"},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "dashboard_update_task",
+        "description": "Update a task's status on the dashboard. Use when a task is started, completed, or reassigned.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "index": {"type": "integer", "description": "Task index (0-based)"},
+                "status": {"type": "string", "enum": ["pending", "active", "done"], "description": "New status"},
+            },
+            "required": ["index", "status"],
+        },
+    },
+    {
+        "name": "dashboard_log_activity",
+        "description": "Log an activity entry to the dashboard feed. Use for notable events, milestones, or completions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Activity description"},
+            },
+            "required": ["text"],
+        },
+    },
+]
+
+
+def _handle_dashboard_tool(tool_name, tool_input):
+    """Execute a dashboard tool and return the result."""
+    data = _load_dashboard()
+
+    if tool_name == "dashboard_create_project":
+        project = {
+            "id": "p" + str(int(datetime.now(timezone.utc).timestamp() * 1000)),
+            "folderId": tool_input.get("folder", "side"),
+            "name": tool_input["name"],
+            "progress": 0,
+            "description": tool_input.get("description", ""),
+            "agents": tool_input.get("agents", []),
+            "prd": "",
+            "rag": "",
+            "created": int(datetime.now(timezone.utc).timestamp() * 1000),
+        }
+        data["projects"].append(project)
+        _save_dashboard(data)
+        _log_activity(f'New project created: "{project["name"]}"')
+        return {"status": "created", "project": project}
+
+    elif tool_name == "dashboard_update_project":
+        project = next((p for p in data["projects"] if p["id"] == tool_input["id"]), None)
+        if not project:
+            return {"error": f"Project {tool_input['id']} not found"}
+        for key in ("progress", "agents", "prd", "status", "description"):
+            if key in tool_input:
+                project[key] = tool_input[key]
+        _save_dashboard(data)
+        _log_activity(f'Project "{project["name"]}" updated')
+        return {"status": "updated", "project": project}
+
+    elif tool_name == "dashboard_create_task":
+        task = {
+            "text": tool_input["text"],
+            "agent": tool_input.get("agent", ""),
+            "status": tool_input.get("status", "pending"),
+        }
+        data["tasks"].insert(0, task)
+        _save_dashboard(data)
+        _log_activity(f'New task: "{task["text"]}"')
+        return {"status": "created", "task": task}
+
+    elif tool_name == "dashboard_update_task":
+        idx = int(tool_input["index"])
+        if idx < 0 or idx >= len(data["tasks"]):
+            return {"error": f"Task index {idx} out of range (0-{len(data['tasks'])-1})"}
+        task = data["tasks"][idx]
+        old_status = task["status"]
+        task["status"] = tool_input["status"]
+        _save_dashboard(data)
+        if tool_input["status"] == "done" and old_status != "done":
+            _log_activity(f'{task["agent"]} completed: "{task["text"]}"')
+        return {"status": "updated", "task": task}
+
+    elif tool_name == "dashboard_log_activity":
+        _log_activity(tool_input["text"])
+        return {"status": "logged"}
+
+    return {"error": f"Unknown dashboard tool: {tool_name}"}
+
+
 # Map tool names to functions
 TOOL_HANDLERS = dict(WEB_HANDLERS)  # Web search always available
 if GOOGLE_AVAILABLE:
@@ -378,12 +575,18 @@ if GOOGLE_AVAILABLE:
         "drive_list_files": lambda **kw: drive_list_files(**kw),
     })
 
+# Dashboard tools (use a dispatcher since they share _handle_dashboard_tool)
+for _dt in DASHBOARD_TOOLS:
+    _tool_name = _dt["name"]
+    TOOL_HANDLERS[_tool_name] = (lambda tn: lambda **kw: _handle_dashboard_tool(tn, kw))(_tool_name)
+
 
 def _chat_with_tools(messages):
-    """Chat with Mimi using tool use for web search + Google services. Handles tool call loops."""
+    """Chat with Mimi using tool use for web search + Google services + dashboard. Handles tool call loops."""
     tools = list(WEB_TOOLS)  # Web search always available
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
+    tools.extend(DASHBOARD_TOOLS)
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -538,6 +741,13 @@ def chat():
     now = datetime.now(timezone.utc).isoformat()
     history.append({"role": "bot", "content": reply, "timestamp": now})
 
+    # Auto-log chat activity to dashboard
+    try:
+        snippet = user_message[:60] if user_message else "file upload"
+        _log_activity(f"Chat: {snippet}")
+    except Exception:
+        pass
+
     return jsonify({"reply": reply, "timestamp": now})
 
 
@@ -689,6 +899,14 @@ def sms_webhook():
     # Process through Mimi
     reply = _sms_chat(from_number, body)
 
+    # Auto-log SMS activity to dashboard
+    try:
+        phone_short = from_number[-4:] if len(from_number) >= 4 else from_number
+        snippet = body[:40]
+        _log_activity(f"SMS from ...{phone_short}: {snippet}")
+    except Exception:
+        pass
+
     # Twilio handles splitting long messages automatically (1600 char segments)
     # but we'll cap at a reasonable length for readability
     if len(reply) > 1500:
@@ -723,10 +941,138 @@ def usage_reset():
 
 
 # ---------------------------------------------------------------------------
+# Dashboard API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/dashboard", methods=["GET"])
+def dashboard_get():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    return jsonify(_load_dashboard())
+
+
+@app.route("/api/dashboard/projects", methods=["POST"])
+def dashboard_create_project():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    body = request.get_json(silent=True) or {}
+    name = body.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "Missing 'name'"}), 400
+    data = _load_dashboard()
+    project = {
+        "id": "p" + str(int(datetime.now(timezone.utc).timestamp() * 1000)),
+        "folderId": body.get("folderId", body.get("folder", "side")),
+        "name": name,
+        "progress": int(body.get("progress", 0)),
+        "description": body.get("description", ""),
+        "agents": body.get("agents", []),
+        "prd": body.get("prd", ""),
+        "rag": body.get("rag", ""),
+        "created": int(datetime.now(timezone.utc).timestamp() * 1000),
+    }
+    data["projects"].append(project)
+    _save_dashboard(data)
+    _log_activity(f'New project created: "{name}"')
+    return jsonify(project), 201
+
+
+@app.route("/api/dashboard/projects", methods=["PUT"])
+def dashboard_update_project():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    body = request.get_json(silent=True) or {}
+    project_id = body.get("id", "")
+    if not project_id:
+        return jsonify({"error": "Missing 'id'"}), 400
+    data = _load_dashboard()
+    project = next((p for p in data["projects"] if p["id"] == project_id), None)
+    if not project:
+        return jsonify({"error": "Project not found"}), 404
+    for key in ("name", "folderId", "description", "prd", "rag", "status"):
+        if key in body:
+            project[key] = body[key]
+    if "progress" in body:
+        project["progress"] = int(body["progress"])
+    if "agents" in body:
+        project["agents"] = body["agents"]
+    _save_dashboard(data)
+    return jsonify(project)
+
+
+@app.route("/api/dashboard/tasks", methods=["POST"])
+def dashboard_create_task():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    body = request.get_json(silent=True) or {}
+    text = body.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "Missing 'text'"}), 400
+    data = _load_dashboard()
+    task = {
+        "text": text,
+        "agent": body.get("agent", ""),
+        "status": body.get("status", "pending"),
+    }
+    data["tasks"].insert(0, task)
+    _save_dashboard(data)
+    if task["agent"]:
+        _log_activity(f'New task assigned to {task["agent"]}: "{text}"')
+    else:
+        _log_activity(f'New task: "{text}"')
+    return jsonify(task), 201
+
+
+@app.route("/api/dashboard/tasks", methods=["PUT"])
+def dashboard_update_task():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    body = request.get_json(silent=True) or {}
+    index = body.get("index")
+    if index is None:
+        return jsonify({"error": "Missing 'index'"}), 400
+    data = _load_dashboard()
+    index = int(index)
+    if index < 0 or index >= len(data["tasks"]):
+        return jsonify({"error": "Task index out of range"}), 404
+    task = data["tasks"][index]
+    if "status" in body:
+        old_status = task["status"]
+        task["status"] = body["status"]
+        if body["status"] == "done" and old_status != "done":
+            _log_activity(f'{task["agent"]} completed: "{task["text"]}"')
+    if "text" in body:
+        task["text"] = body["text"]
+    if "agent" in body:
+        task["agent"] = body["agent"]
+    _save_dashboard(data)
+    return jsonify(task)
+
+
+@app.route("/api/dashboard/activity", methods=["POST"])
+def dashboard_log_activity():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    body = request.get_json(silent=True) or {}
+    text = body.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "Missing 'text'"}), 400
+    _log_activity(text)
+    return jsonify({"status": "ok"}), 201
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
     print(f"Mimi Gateway v1.0 — Model: {MODEL}")
     print(f"Serving frontend from: {CLIENT_DIR}")
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=True)

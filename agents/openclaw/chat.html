@@ -413,7 +413,7 @@ function loadConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     return {
-      apiUrl: saved.apiUrl || 'http://localhost:8000',
+      apiUrl: saved.apiUrl || 'https://nurturing-hope-production-007b.up.railway.app',
       authToken: saved.authToken || 'openclaw',
     };
   } catch { return { apiUrl: 'http://localhost:8000', authToken: 'openclaw' }; }
