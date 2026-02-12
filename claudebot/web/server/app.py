@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import anthropic
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
+from twilio.twiml.messaging_response import MessagingResponse
 
 # Import shared Mimi brain — env loading happens on import
 from mimi_core import (
@@ -85,6 +86,20 @@ def _track_tokens(response):
 # ---------------------------------------------------------------------------
 
 history: list[dict] = []
+
+# ---------------------------------------------------------------------------
+# Twilio SMS config
+# ---------------------------------------------------------------------------
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "").strip()
+_allowed_sms = os.getenv("TWILIO_ALLOWED_NUMBERS", "").strip()
+TWILIO_ALLOWED_NUMBERS = {n.strip() for n in _allowed_sms.split(",") if n.strip()} if _allowed_sms else set()
+
+# Per-phone SMS conversation history (phone -> list of messages)
+sms_history: dict[str, list[dict]] = {}
+SMS_MAX_HISTORY = 30  # Keep last 30 messages per phone number
 
 # ---------------------------------------------------------------------------
 # Auth helper
@@ -563,6 +578,67 @@ def tts_status():
         "elevenlabs": bool(ELEVENLABS_API_KEY),
         "elevenlabs_voice_id": ELEVENLABS_VOICE_ID if ELEVENLABS_API_KEY else None,
     })
+
+
+# ---------------------------------------------------------------------------
+# SMS (Twilio webhook)
+# ---------------------------------------------------------------------------
+
+def _sms_chat(phone: str, user_text: str) -> str:
+    """Process an SMS message through Mimi with full tool access."""
+    if phone not in sms_history:
+        sms_history[phone] = []
+
+    sms_history[phone].append({"role": "user", "content": user_text})
+
+    # Trim to keep history manageable
+    if len(sms_history[phone]) > SMS_MAX_HISTORY:
+        sms_history[phone] = sms_history[phone][-SMS_MAX_HISTORY:]
+
+    try:
+        reply = _chat_with_tools(list(sms_history[phone]))
+    except Exception as e:
+        reply = f"Something went sideways: {e}"
+
+    sms_history[phone].append({"role": "assistant", "content": reply})
+    return reply
+
+
+@app.route("/sms/webhook", methods=["POST"])
+def sms_webhook():
+    """Twilio webhook — receives incoming SMS and replies as Mimi."""
+    from_number = request.form.get("From", "")
+    body = request.form.get("Body", "").strip()
+
+    # Optional: restrict to allowed numbers
+    if TWILIO_ALLOWED_NUMBERS and from_number not in TWILIO_ALLOWED_NUMBERS:
+        resp = MessagingResponse()
+        resp.message("This number is not authorized to talk to Mimi.")
+        return str(resp), 200, {"Content-Type": "application/xml"}
+
+    if not body:
+        resp = MessagingResponse()
+        resp.message("Send me a message and I'll respond!")
+        return str(resp), 200, {"Content-Type": "application/xml"}
+
+    # Handle /clear command
+    if body.lower() in ("/clear", "clear history", "reset"):
+        sms_history.pop(from_number, None)
+        resp = MessagingResponse()
+        resp.message("History cleared. Fresh start!")
+        return str(resp), 200, {"Content-Type": "application/xml"}
+
+    # Process through Mimi
+    reply = _sms_chat(from_number, body)
+
+    # Twilio handles splitting long messages automatically (1600 char segments)
+    # but we'll cap at a reasonable length for readability
+    if len(reply) > 1500:
+        reply = reply[:1497] + "..."
+
+    resp = MessagingResponse()
+    resp.message(reply)
+    return str(resp), 200, {"Content-Type": "application/xml"}
 
 
 # ---------------------------------------------------------------------------
