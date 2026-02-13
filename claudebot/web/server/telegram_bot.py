@@ -19,8 +19,12 @@ from telegram.ext import (
     filters,
 )
 
+import json as _json
+import anthropic
+
 from mimi_core import (
     SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
+    async_client,
     achat_with_mimi,
     process_image_bytes, process_document_bytes,
     tts_to_ogg_bytes, XAI_API_KEY,
@@ -95,6 +99,76 @@ def _split_message(text: str, limit: int = TELEGRAM_MSG_LIMIT) -> list[str]:
     return chunks
 
 # ---------------------------------------------------------------------------
+# Async tool-calling chat (mirrors _chat_with_tools from app.py)
+# ---------------------------------------------------------------------------
+
+# Import tool definitions and handlers from the Flask app
+from app import WEB_TOOLS, GOOGLE_TOOLS, GOOGLE_AVAILABLE, DASHBOARD_TOOLS, TOOL_HANDLERS
+
+async def _achat_with_tools(messages: list[dict]) -> str:
+    """Async chat with full tool access (web search, Google, dashboard)."""
+    tools = list(WEB_TOOLS)
+    if GOOGLE_AVAILABLE:
+        tools.extend(GOOGLE_TOOLS)
+    tools.extend(DASHBOARD_TOOLS)
+
+    response = await async_client.messages.create(
+        model=MODEL,
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
+        messages=messages,
+        tools=tools if tools else anthropic.NOT_GIVEN,
+    )
+
+    for _ in range(5):
+        if response.stop_reason != "tool_use":
+            break
+
+        assistant_content = response.content
+        tool_results = []
+
+        for block in assistant_content:
+            if block.type == "tool_use":
+                handler = TOOL_HANDLERS.get(block.name)
+                if handler:
+                    try:
+                        result = handler(**block.input)
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": _json.dumps(result, default=str, ensure_ascii=False),
+                        })
+                    except Exception as e:
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": f"Error: {e}",
+                            "is_error": True,
+                        })
+                else:
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": f"Tool '{block.name}' not available.",
+                        "is_error": True,
+                    })
+
+        messages.append({"role": "assistant", "content": assistant_content})
+        messages.append({"role": "user", "content": tool_results})
+
+        response = await async_client.messages.create(
+            model=MODEL,
+            max_tokens=2048,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+            tools=tools,
+        )
+
+    text_parts = [b.text for b in response.content if hasattr(b, "text")]
+    return "\n".join(text_parts) if text_parts else "Done."
+
+
+# ---------------------------------------------------------------------------
 # Command handlers
 # ---------------------------------------------------------------------------
 
@@ -162,7 +236,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     _trim_history(uid)
 
     try:
-        reply = await achat_with_mimi(hist)
+        reply = await _achat_with_tools(list(hist))
     except Exception as e:
         reply = f"[LINK ERROR] Something went sideways: {e}"
 
@@ -192,7 +266,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     _trim_history(uid)
 
     try:
-        reply = await achat_with_mimi(hist)
+        reply = await _achat_with_tools(list(hist))
     except Exception as e:
         reply = f"[LINK ERROR] Something went sideways: {e}"
 
@@ -232,7 +306,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     _trim_history(uid)
 
     try:
-        reply = await achat_with_mimi(hist)
+        reply = await _achat_with_tools(list(hist))
     except Exception as e:
         reply = f"[LINK ERROR] Something went sideways: {e}"
 
