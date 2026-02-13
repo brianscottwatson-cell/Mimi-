@@ -11,29 +11,34 @@ import time
 import traceback
 import threading
 
-
-def run_flask():
-    """Start the Flask web service in a background thread."""
-    try:
-        port = int(os.environ.get("PORT", 8000))
-        print(f"[Flask] Importing app...", flush=True)
-        from app import app
-        print(f"[Flask] Starting on port {port}...", flush=True)
-        app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
-    except Exception as e:
-        print(f"[Flask] FATAL: {e}", file=sys.stderr, flush=True)
-        traceback.print_exc()
-
-
 if __name__ == "__main__":
-    # Start Flask in a background thread (doesn't need signal handlers)
-    port = os.environ.get("PORT", 8000)
-    print(f"[start_railway] Starting Flask on port {port} (background thread)...", flush=True)
+    port = int(os.environ.get("PORT", 8000))
+
+    # Import app on main thread FIRST to avoid import race conditions
+    print(f"[start_railway] Importing app module...", flush=True)
+    try:
+        from app import app
+        print(f"[start_railway] App imported OK", flush=True)
+    except Exception as e:
+        print(f"[start_railway] FATAL: Failed to import app: {e}", flush=True)
+        traceback.print_exc()
+        sys.exit(1)
+
+    # Start Flask in a background thread
+    def run_flask():
+        try:
+            print(f"[Flask] Starting on 0.0.0.0:{port}...", flush=True)
+            app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+        except Exception as e:
+            print(f"[Flask] FATAL: {e}", file=sys.stderr, flush=True)
+            traceback.print_exc()
+
+    print(f"[start_railway] Launching Flask thread on port {port}...", flush=True)
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    # Give Flask a moment to start before Telegram bot takes over main thread
-    time.sleep(2)
+    # Give Flask a moment to bind the port
+    time.sleep(1)
 
     # Run Telegram bot on the main thread (needs signal handlers)
     tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -43,4 +48,4 @@ if __name__ == "__main__":
         tg_main()  # Blocks forever (run_polling)
     else:
         print("[start_railway] No TELEGRAM_BOT_TOKEN set, keeping Flask alive...", flush=True)
-        flask_thread.join()  # Block main thread so Flask stays up
+        flask_thread.join()
