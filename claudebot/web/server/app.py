@@ -30,6 +30,17 @@ try:
 except Exception:
     GOOGLE_AVAILABLE = False
 
+# GitHub repo tools (for Mimi's GitHub Pages site)
+try:
+    from github_tools import (
+        github_list_files, github_read_file,
+        github_create_file, github_update_file,
+        github_delete_file, github_get_pages_status,
+        GITHUB_AVAILABLE,
+    )
+except Exception:
+    GITHUB_AVAILABLE = False
+
 # Web search (free, no API key)
 from web_search import (
     web_search, web_news, web_answers,
@@ -496,6 +507,79 @@ DASHBOARD_TOOLS = [
 ]
 
 
+GITHUB_TOOLS = [
+    {
+        "name": "github_list_files",
+        "description": "List files and directories in the Mimi GitHub Pages repo. Use to browse the site structure.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Directory path to list (default: repo root)", "default": ""},
+                "recursive": {"type": "boolean", "description": "Include one level of subdirectories", "default": False},
+            },
+        },
+    },
+    {
+        "name": "github_read_file",
+        "description": "Read a file from the Mimi GitHub Pages repo. Returns content and SHA (needed for updates).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path relative to repo root (e.g. 'agents/openclaw/dashboard.html')"},
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "github_create_file",
+        "description": "Create a NEW file in the Mimi GitHub Pages repo. Goes live in ~30 seconds. Fails if file exists.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to create (e.g. 'projects.html')"},
+                "content": {"type": "string", "description": "Full file content (HTML, CSS, JS, Markdown, etc.)"},
+                "commit_message": {"type": "string", "description": "Git commit message (auto-generated if omitted)"},
+            },
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "github_update_file",
+        "description": "Update an EXISTING file in the Mimi GitHub Pages repo. Auto-fetches SHA. Goes live in ~30 seconds.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to update"},
+                "content": {"type": "string", "description": "Complete new file content (replaces entire file)"},
+                "commit_message": {"type": "string", "description": "Git commit message (auto-generated if omitted)"},
+                "sha": {"type": "string", "description": "File SHA from github_read_file (auto-fetched if omitted)"},
+            },
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "github_delete_file",
+        "description": "Delete a file from the Mimi GitHub Pages repo. Cannot delete protected server files.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to delete"},
+                "commit_message": {"type": "string", "description": "Git commit message (auto-generated if omitted)"},
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "github_get_pages_status",
+        "description": "Check GitHub Pages deployment status and view recent commits.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+]
+
+
 def _handle_dashboard_tool(tool_name, tool_input):
     """Execute a dashboard tool and return the result."""
     data = _load_dashboard()
@@ -580,13 +664,26 @@ for _dt in DASHBOARD_TOOLS:
     _tool_name = _dt["name"]
     TOOL_HANDLERS[_tool_name] = (lambda tn: lambda **kw: _handle_dashboard_tool(tn, kw))(_tool_name)
 
+# GitHub tools (if GITHUB_TOKEN is set)
+if GITHUB_AVAILABLE:
+    TOOL_HANDLERS.update({
+        "github_list_files": lambda **kw: github_list_files(**kw),
+        "github_read_file": lambda **kw: github_read_file(**kw),
+        "github_create_file": lambda **kw: github_create_file(**kw),
+        "github_update_file": lambda **kw: github_update_file(**kw),
+        "github_delete_file": lambda **kw: github_delete_file(**kw),
+        "github_get_pages_status": lambda **kw: github_get_pages_status(**kw),
+    })
+
 
 def _chat_with_tools(messages):
-    """Chat with Mimi using tool use for web search + Google services + dashboard. Handles tool call loops."""
+    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub. Handles tool call loops."""
     tools = list(WEB_TOOLS)  # Web search always available
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
     tools.extend(DASHBOARD_TOOLS)
+    if GITHUB_AVAILABLE:
+        tools.extend(GITHUB_TOOLS)
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,

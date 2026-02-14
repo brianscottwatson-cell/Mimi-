@@ -103,14 +103,20 @@ def _split_message(text: str, limit: int = TELEGRAM_MSG_LIMIT) -> list[str]:
 # ---------------------------------------------------------------------------
 
 # Import tool definitions and handlers from the Flask app
-from app import WEB_TOOLS, GOOGLE_TOOLS, GOOGLE_AVAILABLE, DASHBOARD_TOOLS, TOOL_HANDLERS
+from app import (
+    WEB_TOOLS, GOOGLE_TOOLS, GOOGLE_AVAILABLE,
+    DASHBOARD_TOOLS, GITHUB_TOOLS, GITHUB_AVAILABLE,
+    TOOL_HANDLERS,
+)
 
 async def _achat_with_tools(messages: list[dict]) -> str:
-    """Async chat with full tool access (web search, Google, dashboard)."""
+    """Async chat with full tool access (web search, Google, dashboard, GitHub)."""
     tools = list(WEB_TOOLS)
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
     tools.extend(DASHBOARD_TOOLS)
+    if GITHUB_AVAILABLE:
+        tools.extend(GITHUB_TOOLS)
 
     response = await async_client.messages.create(
         model=MODEL,
