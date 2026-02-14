@@ -25,24 +25,40 @@ CREDS_FILE = os.path.join(_DIR, "google_credentials.json")
 TOKEN_FILE = os.path.join(_DIR, "google_token.json")
 
 
+def _write_env_json_to_file(env_var, file_path):
+    """If env var exists but file doesn't, write env var contents to file."""
+    if not os.path.exists(file_path):
+        raw = os.environ.get(env_var, "").strip()
+        if raw:
+            with open(file_path, "w") as f:
+                f.write(raw)
+
+
 def get_credentials():
     """Load or refresh Google OAuth credentials."""
+    # On Railway, write env vars to files if files don't exist
+    _write_env_json_to_file("GOOGLE_CREDENTIALS_JSON", CREDS_FILE)
+    _write_env_json_to_file("GOOGLE_TOKEN_JSON", TOKEN_FILE)
+
     creds = None
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+            # Persist refreshed token back to file and env
+            with open(TOKEN_FILE, "w") as f:
+                f.write(creds.to_json())
         else:
             if not os.path.exists(CREDS_FILE):
                 raise FileNotFoundError(
                     f"Google credentials not found at {CREDS_FILE}. "
-                    "Run google_auth.py first."
+                    "Run google_auth.py first or set GOOGLE_CREDENTIALS_JSON env var."
                 )
             flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
+            with open(TOKEN_FILE, "w") as f:
+                f.write(creds.to_json())
     return creds
 
 
