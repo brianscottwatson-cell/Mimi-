@@ -688,6 +688,7 @@
   <p>Agent Team Dashboard — Orchestrated by Mimi</p>
   <a href="chat.html" class="chat-link">Chat with Mimi</a>
   <a href="blueprint.html" class="chat-link" style="margin-left:0.5rem">Blueprint</a>
+  <a href="../../shop.html" class="chat-link" style="margin-left:0.5rem;background:linear-gradient(135deg, #00f0ff, #aa00ff);">Shop</a>
 </header>
 
 <!-- ── Enterprise Hierarchy ──────────────────────────────────── -->
@@ -730,7 +731,7 @@
       <select id="newTaskAgent">
         <option value="">Assign to...</option>
         <option value="Rex">Rex</option><option value="Cora">Cora</option><option value="Dax">Dax</option>
-        <option value="Dev">Dev</option><option value="Finn">Finn</option><option value="Pax">Pax</option><option value="Mia">Mia</option><option value="Vale">Vale</option>
+        <option value="Dev">Dev</option><option value="Finn">Finn</option><option value="Pax">Pax</option><option value="Mia">Mia</option><option value="Vale">Vale</option><option value="Pip">Pip</option>
       </select>
       <button onclick="addTask()">+ Add Task</button>
     </div>
@@ -967,10 +968,21 @@ const agentData = {
     installedSkills: '',
     quirks: ['Opens with "What\'s the highest-leverage thing you could do right now?"', 'Ranks decisions as "reversible" vs "irreversible" before committing', 'Gets visibly energized by non-obvious market gaps', 'Maintains a personal opportunity cost ledger', 'Ends strategic reviews with "What are we not seeing?"', 'Quotes Munger, Bezos, and Buffett naturally']
   },
+  pip: {
+    id: 'pip', name: 'Pip', role: 'Product Manager', emoji: '\u{1F4CB}', color: '#14b8a6', status: 'online',
+    personality: 'Relentlessly curious and warmly persistent. The person at the whiteboard who keeps asking "but why?" until the real answer emerges \u2014 not to challenge, but because he believes the best products hide behind the fifth question.',
+    backstory: 'Pip started as a customer support rep at a scrappy SaaS startup. Two years of hearing every complaint, workaround, and "I wish it could just..." gave him a mental library of 10,000 real conversations about what people actually needed versus what they said they wanted. His first PRD was scribbled on a napkin during a customer call. It shipped in 6 weeks and doubled retention.',
+    motivation: 'Every great product starts with a question nobody thought to ask. Most failed products aren\'t built wrong \u2014 they\'re built right for the wrong problem.',
+    skills: ['Product discovery', 'PRD writing', 'Requirements gathering', 'Feature prioritization (RICE)', 'MVP scoping', 'User persona development', 'Jobs-to-be-done analysis', 'Stakeholder interviews', 'Opportunity sizing', 'Idea validation'],
+    tools: ['Web Search', 'Reddit Search', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Requests market research from Rex to validate assumptions. Hands positioning briefs to Cora. Collaborates with Dax on UX flows. Delivers detailed PRDs to Dev. Partners with Finn on pricing and unit economics. Hands finalized PRDs to Pax for sprint planning. Aligns with Mia on go-to-market. Validates product-market fit with Vale.',
+    installedSkills: 'Daily Idea Pitch System \u2014 Discovery & PRD Pipeline',
+    quirks: ['Opens idea sessions with "Okay, pitch me \u2014 I\'m all ears"', 'Asks questions one at a time, never dumps a list', 'Has a napkin test \u2014 if the value prop can\'t fit on a napkin, it\'s not clear', 'Categorizes ideas as "vitamin" (nice-to-have) vs "painkiller" (must-have)', 'Signs off PRDs with "What are we still guessing about?"', 'Names product concepts with codenames during discovery']
+  },
 };
 
-// Ordered agent list (excluding Mimi — she\'s rendered separately)
-const agents = ['rex', 'cora', 'dax', 'dev', 'finn', 'pax', 'mia', 'vale'].map(id => agentData[id]);
+// Ordered agent list (excluding Mimi — she's rendered separately)
+const agents = ['rex', 'cora', 'dax', 'dev', 'finn', 'pax', 'mia', 'vale', 'pip'].map(id => agentData[id]);
 
 // ── API Configuration ─────────────────────────────────────
 // Try chatConfig first (set by chat.html settings), then defaults

@@ -1,0 +1,56 @@
+# Pip — Memory File
+
+## Shared Team Knowledge
+- **Team Lead**: Brian Watson
+- **Orchestrator**: Mimi — coordinates all agents, communicates with Brian
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing), Vale (Strategy), Pip (Product)
+- **Communication Protocol**: Agents share findings via memory files; tag relevant agents when insights affect their domain
+
+## Daily Idea Pitch Check-in
+Brian has a daily check-in where he pitches ideas, concepts, and tools. Pip leads this session:
+- **Schedule**: Daily (flexible timing, often afternoon/evening creative window)
+- **Format**: Brian pitches 1-3 ideas; Pip asks discovery questions for each
+- **Output**: Each idea gets a quick score card (Problem clarity, Market size, Feasibility, Excitement) and either moves to PRD pipeline or stays in the idea backlog
+- **Follow-up**: Weekly review of idea backlog to promote, park, or kill concepts
+
+## Idea Backlog
+<!-- Persistent idea tracking — add entries as Brian pitches -->
+### [Idea Name] — [Date]
+- **One-liner**: [What it is in one sentence]
+- **Problem**: [What pain does it solve?]
+- **For whom**: [Target user/customer]
+- **Score**: Problem __ / Market __ / Feasibility __ / Excitement __ (1-5 each)
+- **Status**: [Raw / Exploring / PRD Draft / Handed Off / Killed]
+- **Open Questions**: [What we still don't know]
+
+## PRD Archive
+<!-- Completed PRDs for reference -->
+### [Product Name] — [Date]
+- **Status**: [Draft / Approved / In Development / Shipped]
+- **PRD Location**: [Link or reference]
+- **Team Assignments**: [Who owns what]
+- **Key Decisions**: [Major choices made during discovery]
+
+## Product Frameworks Reference
+- **RICE**: Reach x Impact x Confidence / Effort
+- **MoSCoW**: Must-have, Should-have, Could-have, Won't-have
+- **Jobs-to-be-Done**: When [situation], I want to [motivation], so I can [outcome]
+- **Napkin Test**: Core value prop in one sentence, target user in one sentence, differentiation in one sentence
+
+## Relationship Notes
+- **Rex**: Feed him specific research questions, not open-ended topics — he works best with focused briefs
+- **Cora**: Needs the "why" behind the product, not just features — give her the story
+- **Dax**: Thinks in flows and screens — sketch the user journey before discussing visuals
+- **Dev**: Wants clear acceptance criteria and edge cases — the more specific the better
+- **Finn**: Expects unit economics early — don't pitch a PRD without knowing the business model
+- **Pax**: Handoff should include prioritized features with clear scope boundaries
+- **Mia**: Wants to know the hook — what makes someone try this for the first time?
+- **Vale**: Will challenge "why this, why now?" — have the strategic answer ready
+
+## Shop Products & Concepts
+<!-- Track items listed on the online shop -->
+### [Product/Concept Name] — [Date Added]
+- **Type**: [Digital Product / Physical Product / Concept / Tool / Service]
+- **Description**: [Brief description]
+- **Price Point**: [Target price or pricing model]
+- **Status**: [Listed / Coming Soon / Sold Out / Retired]

@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#050508">
+<title>OPENCLAW SHOP // Ideas, Products & Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* --- DESIGN TOKENS --- */
+:root {
+  --neon-cyan: #00f0ff;
+  --neon-magenta: #ff00aa;
+  --neon-purple: #aa00ff;
+  --neon-lime: #aaff00;
+  --neon-green: #00ff41;
+  --retro-amber: #ffa040;
+  --bg-void: #050508;
+  --bg-dark: #0a0a10;
+  --bg-panel: #0e0e16;
+  --bg-surface: #141420;
+  --bg-elevated: #1a1a28;
+  --border-dim: #1a1a2e;
+  --border-glow: rgba(0, 240, 255, 0.15);
+  --text-primary: #d8d8e4;
+  --text-muted: #6a6a80;
+  --text-ghost: #3a3a50;
+  --font-cyber: 'Rajdhani', 'Segoe UI', sans-serif;
+  --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+  --font-clean: 'Inter', -apple-system, sans-serif;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-mono);
+  background: var(--bg-void);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* --- SCANLINE + CRT --- */
+.scanline-overlay {
+  position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, transparent 1px, transparent 2px);
+}
+.crt-vignette {
+  position: fixed; inset: 0; z-index: 9997; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(5,5,8,0.6) 100%);
+}
+
+/* --- HEADER --- */
+.shop-header {
+  text-align: center;
+  padding: 3rem 1.5rem 2rem;
+  border-bottom: 1px solid var(--border-dim);
+  background: linear-gradient(180deg, rgba(170,0,255,0.06) 0%, transparent 100%);
+  position: relative;
+}
+.shop-header::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0,240,255,0.3) 20%, rgba(0,240,255,0.1) 50%, rgba(255,0,170,0.3) 80%, transparent 100%);
+}
+.shop-logo {
+  font-family: var(--font-cyber);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--neon-magenta), var(--neon-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+.shop-tagline {
+  font-family: var(--font-clean);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.shop-nav {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+.shop-nav a {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+.shop-nav a:hover, .shop-nav a.active {
+  color: var(--neon-cyan);
+  border-color: rgba(0,240,255,0.4);
+  box-shadow: 0 0 12px rgba(0,240,255,0.1);
+}
+
+/* --- FILTER BAR --- */
+.filter-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 1.5rem;
+  flex-wrap: wrap;
+}
+.filter-btn {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 20px;
+  padding: 6px 16px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.25s;
+}
+.filter-btn:hover, .filter-btn.active {
+  color: var(--neon-magenta);
+  border-color: rgba(255,0,170,0.4);
+  background: rgba(255,0,170,0.06);
+  box-shadow: 0 0 10px rgba(255,0,170,0.08);
+}
+
+/* --- PRODUCT GRID --- */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 0 2rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* --- PRODUCT CARD --- */
+.product-card {
+  background: linear-gradient(135deg, rgba(14,14,22,0.95) 0%, rgba(20,20,32,0.9) 100%);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+}
+.product-card:hover {
+  border-color: rgba(0,240,255,0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0,240,255,0.08), 0 0 1px rgba(0,240,255,0.3);
+}
+.product-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.product-card:hover::before { opacity: 1; }
+
+.card-visual {
+  height: 180px;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.card-visual .visual-icon {
+  font-size: 3.5rem;
+  opacity: 0.9;
+  z-index: 1;
+}
+.card-visual .visual-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.card-body { padding: 1.2rem; }
+
+.card-category {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+.cat-idea { color: var(--neon-cyan); border-color: rgba(0,240,255,0.3); background: rgba(0,240,255,0.06); }
+.cat-product { color: var(--neon-magenta); border-color: rgba(255,0,170,0.3); background: rgba(255,0,170,0.06); }
+.cat-concept { color: var(--neon-purple); border-color: rgba(170,0,255,0.3); background: rgba(170,0,255,0.06); }
+.cat-tool { color: var(--neon-green); border-color: rgba(0,255,65,0.3); background: rgba(0,255,65,0.06); }
+.cat-service { color: var(--retro-amber); border-color: rgba(255,160,64,0.3); background: rgba(255,160,64,0.06); }
+
+.card-title {
+  font-family: var(--font-cyber);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #e8e4dc;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+}
+.card-desc {
+  font-family: var(--font-clean);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border-dim);
+}
+.card-price {
+  font-family: var(--font-cyber);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0,240,255,0.3);
+}
+.card-status {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+.status-available { color: var(--neon-green); background: rgba(0,255,65,0.08); border: 1px solid rgba(0,255,65,0.2); }
+.status-coming { color: var(--retro-amber); background: rgba(255,160,64,0.08); border: 1px solid rgba(255,160,64,0.2); }
+.status-sold { color: var(--text-ghost); background: rgba(58,58,80,0.3); border: 1px solid rgba(58,58,80,0.4); }
+
+/* --- PRODUCT DETAIL MODAL --- */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(5,5,8,0.85); z-index: 10000;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+}
+.modal-backdrop.visible { display: flex; }
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 10px;
+  width: 90%; max-width: 600px;
+  max-height: 85vh; overflow-y: auto;
+  padding: 2rem;
+  animation: modalIn 0.3s ease;
+  position: relative;
+}
+@keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+}
+.modal-close {
+  position: absolute; top: 1rem; right: 1rem;
+  background: none; border: 1px solid var(--border-dim);
+  color: var(--text-muted); width: 32px; height: 32px;
+  border-radius: 6px; cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.modal-close:hover { color: var(--neon-magenta); border-color: rgba(255,0,170,0.3); }
+.modal-icon { font-size: 3rem; margin-bottom: 1rem; }
+.modal-title {
+  font-family: var(--font-cyber);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #e8e4dc;
+  margin-bottom: 0.3rem;
+  letter-spacing: 2px;
+}
+.modal-cat {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+.modal-desc {
+  font-family: var(--font-clean);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+}
+.modal-features {
+  margin-bottom: 1.5rem;
+}
+.modal-features h4 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--neon-cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+.modal-features ul {
+  list-style: none;
+}
+.modal-features li {
+  font-family: var(--font-clean);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.3rem 0;
+}
+.modal-features li::before {
+  content: '\25C6';
+  color: var(--neon-magenta);
+  margin-right: 0.6rem;
+  font-size: 0.6rem;
+}
+.modal-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-dim);
+}
+.modal-price {
+  font-family: var(--font-cyber);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(0,240,255,0.3);
+}
+.modal-cta {
+  font-family: var(--font-cyber);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s;
+  background: linear-gradient(135deg, var(--neon-magenta), var(--neon-purple));
+  color: white;
+  box-shadow: 0 0 20px rgba(255,0,170,0.2);
+}
+.modal-cta:hover {
+  box-shadow: 0 0 30px rgba(255,0,170,0.4);
+  transform: translateY(-2px);
+}
+.modal-cta.disabled {
+  background: var(--bg-surface);
+  color: var(--text-ghost);
+  border: 1px solid var(--border-dim);
+  box-shadow: none;
+  cursor: default;
+}
+.modal-cta.disabled:hover { transform: none; box-shadow: none; }
+
+/* --- CONTACT / INQUIRY SECTION --- */
+.inquiry-section {
+  max-width: 600px;
+  margin: 0 auto 3rem;
+  padding: 2rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  position: relative;
+}
+.inquiry-section::before {
+  content: '';
+  position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+  border-radius: 3px 0 0 3px;
+}
+.inquiry-section h3 {
+  font-family: var(--font-cyber);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #e8e4dc;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+}
+.inquiry-section p {
+  font-family: var(--font-clean);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1.2rem;
+  line-height: 1.6;
+}
+.inquiry-form { display: flex; flex-direction: column; gap: 0.8rem; }
+.inquiry-form input, .inquiry-form textarea {
+  width: 100%; padding: 0.7rem 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+.inquiry-form input:focus, .inquiry-form textarea:focus {
+  outline: none;
+  border-color: rgba(0,240,255,0.4);
+  box-shadow: 0 0 8px rgba(0,240,255,0.06);
+}
+.inquiry-form input::placeholder, .inquiry-form textarea::placeholder {
+  color: var(--text-ghost);
+}
+.inquiry-submit {
+  align-self: flex-end;
+  font-family: var(--font-cyber);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 10px 24px;
+  border: 1px solid var(--neon-cyan);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--neon-cyan);
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.inquiry-submit:hover {
+  background: rgba(0,240,255,0.08);
+  box-shadow: 0 0 16px rgba(0,240,255,0.12);
+}
+
+/* --- EMPTY STATE --- */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  grid-column: 1 / -1;
+}
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+.empty-state p {
+  font-family: var(--font-clean);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* --- FOOTER --- */
+.shop-footer {
+  text-align: center;
+  padding: 2rem;
+  border-top: 1px solid var(--border-dim);
+  margin-top: 2rem;
+}
+.shop-footer p {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-ghost);
+  letter-spacing: 2px;
+}
+.shop-footer a {
+  color: var(--neon-cyan);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.shop-footer a:hover { color: var(--neon-magenta); }
+
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(138,155,174,0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.3); }
+* { scrollbar-width: thin; scrollbar-color: rgba(138,155,174,0.2) transparent; }
+::selection { background: rgba(0,240,255,0.2); color: #e8e4dc; }
+
+/* --- RESPONSIVE --- */
+@media (max-width: 640px) {
+  .shop-header { padding: 2rem 1rem 1.5rem; }
+  .shop-logo { font-size: 1.6rem; letter-spacing: 3px; }
+  .shop-grid { grid-template-columns: 1fr; padding: 0 1rem 2rem; }
+  .shop-nav { gap: 0.6rem; }
+  .shop-nav a { font-size: 0.65rem; padding: 5px 10px; }
+  .inquiry-section { margin: 0 1rem 2rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="scanline-overlay"></div>
+<div class="crt-vignette"></div>
+
+<!-- HEADER -->
+<header class="shop-header">
+  <div class="shop-logo">OpenClaw Shop</div>
+  <div class="shop-tagline">Ideas // Products // Concepts // Tools</div>
+  <nav class="shop-nav">
+    <a href="agents/openclaw/dashboard.html">Dashboard</a>
+    <a href="agents/openclaw/chat.html">Chat with Mimi</a>
+    <a href="agents/openclaw/blueprint.html">Blueprint</a>
+  </nav>
+</header>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="idea">Ideas</button>
+  <button class="filter-btn" data-filter="product">Products</button>
+  <button class="filter-btn" data-filter="concept">Concepts</button>
+  <button class="filter-btn" data-filter="tool">Tools</button>
+  <button class="filter-btn" data-filter="service">Services</button>
+</div>
+
+<!-- PRODUCT GRID -->
+<div class="shop-grid" id="shopGrid">
+  <!-- Products rendered by JS -->
+</div>
+
+<!-- INQUIRY SECTION -->
+<section class="inquiry-section" id="inquiry">
+  <h3>Got a Custom Request?</h3>
+  <p>Looking for something specific or want to collaborate on an idea? Drop a message and we'll get back to you.</p>
+  <form class="inquiry-form" id="inquiryForm" onsubmit="handleInquiry(event)">
+    <input type="text" placeholder="Your name" required id="inqName">
+    <input type="email" placeholder="Your email" required id="inqEmail">
+    <input type="text" placeholder="Subject — what are you interested in?" required id="inqSubject">
+    <textarea rows="4" placeholder="Tell us more about what you're looking for..." required id="inqMessage"></textarea>
+    <button type="submit" class="inquiry-submit">Send Inquiry</button>
+  </form>
+</section>
+
+<!-- FOOTER -->
+<footer class="shop-footer">
+  <p>OPENCLAW SHOP // POWERED BY <a href="agents/openclaw/dashboard.html">MIMI + AGENT TEAM</a></p>
+  <p style="margin-top: 0.5rem; font-size: 0.6rem;">Built with ideas that don't sleep</p>
+</footer>
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeProductModal()">&times;</button>
+    <div class="modal-icon" id="pmIcon"></div>
+    <div class="modal-title" id="pmTitle"></div>
+    <div id="pmCat"></div>
+    <div class="modal-desc" id="pmDesc"></div>
+    <div class="modal-features" id="pmFeatures">
+      <h4>What's Included</h4>
+      <ul id="pmFeatureList"></ul>
+    </div>
+    <div class="modal-price-row">
+      <div class="modal-price" id="pmPrice"></div>
+      <button class="modal-cta" id="pmCta" onclick="handlePurchase()">Inquire Now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Shop Product Data ──────────────────────────────────
+// Edit this array to add/remove/modify products
+const products = [
+  {
+    id: 'ai-agent-team',
+    name: 'AI Agent Team Blueprint',
+    icon: '\u{1F916}',
+    category: 'product',
+    status: 'available',
+    price: '$49',
+    shortDesc: 'A complete framework for building your own multi-agent AI team with specialized roles, personality profiles, and coordination patterns.',
+    fullDesc: 'The exact blueprint behind the OpenClaw agent system. Includes 8+ agent role templates with personality files (.soul), skill specs (.md), and memory architecture (.memory). Deploy your own coordinated AI team for product development, marketing, research, and more.',
+    features: [
+      '8 agent role templates (Research, Copy, Design, Dev, Finance, PM, Marketing, Strategy)',
+      'Personality engine files (.soul) for authentic agent voices',
+      'Memory architecture for persistent context across sessions',
+      'Orchestration patterns for multi-agent coordination',
+      'Dashboard HTML template for visual team management',
+      'Integration guide for Claude API / Anthropic SDK'
+    ]
+  },
+  {
+    id: 'lead-gen-builder',
+    name: 'Lead Gen Website Builder',
+    icon: '\u{1F310}',
+    category: 'tool',
+    status: 'available',
+    price: '$79',
+    shortDesc: 'AI-powered skill that builds high-converting lead generation websites for local service businesses in minutes.',
+    fullDesc: 'A complete multi-phase website building skill powered by the OpenClaw agent team. From competitor analysis to deployment, each phase is handled by a specialized agent. Includes SEO optimization, GDPR compliance, Google Business Profile setup, and conversion tracking.',
+    features: [
+      'Phase 1: Market analysis & competitor research (Rex)',
+      'Phase 2-3: Design concepts & visual assets (Dax)',
+      'Phase 4: Conversion-optimized content structure (Cora)',
+      'Phase 5: Full development & deployment (Dev)',
+      'Phase 6: SEO, tracking, GBP, and ad setup (Mia)',
+      'Built-in Google spam policy compliance checks',
+      'RGPD/GDPR ready templates'
+    ]
+  },
+  {
+    id: 'prd-machine',
+    name: 'The PRD Machine',
+    icon: '\u{1F4CB}',
+    category: 'concept',
+    status: 'coming',
+    price: '$29',
+    shortDesc: 'An AI-driven product discovery workflow that turns raw ideas into structured PRDs through Socratic questioning.',
+    fullDesc: 'Powered by Pip, our Product Manager agent. Feed it a raw idea and it walks you through structured discovery — asking the right questions one at a time until you have a complete PRD with problem statement, user personas, prioritized features, and team assignments.',
+    features: [
+      'Socratic discovery flow (questions, not assumptions)',
+      'Auto-generated PRD with 6 core sections',
+      'Feature prioritization using RICE framework',
+      'User persona builder from interview responses',
+      'MVP scope definition with clear boundaries',
+      'Team assignment recommendations'
+    ]
+  },
+  {
+    id: 'cyberpunk-dashboard',
+    name: 'Cyberpunk Dashboard Kit',
+    icon: '\u{1F5A5}\uFE0F',
+    category: 'product',
+    status: 'available',
+    price: '$39',
+    shortDesc: 'A complete cyberpunk-themed dashboard UI kit with CRT effects, neon accents, and retro-futuristic components.',
+    fullDesc: 'The exact CSS + HTML templates powering the OpenClaw command center. Includes the full design system with Snow Crash + ModRetro + Lumon aesthetics — scanlines, CRT vignette, glitch text, neon glow effects, matrix rain background, and responsive components.',
+    features: [
+      'Full CSS design system with custom properties',
+      'CRT/scanline/vignette overlay effects',
+      'Glitch text and neon glow animations',
+      'Matrix rain canvas background',
+      'Responsive card, modal, and form components',
+      'Dark-only theme optimized for readability'
+    ]
+  },
+  {
+    id: 'idea-pitch-system',
+    name: 'Daily Idea Pitch System',
+    icon: '\u{1F4A1}',
+    category: 'idea',
+    status: 'coming',
+    price: '$19',
+    shortDesc: 'A structured daily check-in framework for capturing, scoring, and evolving your best ideas into actionable projects.',
+    fullDesc: 'Stop losing ideas to the void. This system gives you a daily ritual for pitching ideas to an AI product manager who scores them on Problem Clarity, Market Size, Feasibility, and Excitement. Ideas graduate from backlog to PRD to project when they\'re ready.',
+    features: [
+      'Daily pitch check-in template and workflow',
+      'Idea scoring framework (4-axis: Problem, Market, Feasibility, Excitement)',
+      'Idea backlog management with lifecycle stages',
+      'Weekly review protocol for promoting/parking/killing concepts',
+      'Integration with PRD generation pipeline',
+      'Notion/Google Docs export templates'
+    ]
+  },
+  {
+    id: 'mimi-personal-agent',
+    name: 'Personal Agent Starter Kit',
+    icon: '\u{2728}',
+    category: 'product',
+    status: 'available',
+    price: '$59',
+    shortDesc: 'Everything you need to deploy your own Mimi-style personal AI assistant with web chat, Telegram bot, and Google integrations.',
+    fullDesc: 'A full-stack personal AI assistant template. Includes the Flask web server, cyberpunk chat interface, Telegram bot integration, Google services (Gmail, Calendar, Docs), web search tools, and multi-model support. Deploy on Railway in minutes.',
+    features: [
+      'Flask web server with cyberpunk chat UI',
+      'Telegram bot with voice and file support',
+      'Google integration (Gmail, Calendar, Docs, Drive)',
+      'Web search via DuckDuckGo (free, no API key)',
+      'Multi-model support (Claude Opus/Sonnet/Haiku)',
+      'Token usage tracking and cost monitoring',
+      'Railway deployment config included'
+    ]
+  },
+];
+
+// ── Render Products ────────────────────────────────────
+function renderProducts(filter = 'all') {
+  const grid = document.getElementById('shopGrid');
+  const filtered = filter === 'all' ? products : products.filter(p => p.category === filter);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">\u{1F50D}</div><p>No products in this category yet. Check back soon.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => `
+    <div class="product-card" data-id="${p.id}" onclick="openProductModal('${p.id}')">
+      <div class="card-visual">
+        <div class="visual-grid"></div>
+        <span class="visual-icon">${p.icon}</span>
+      </div>
+      <div class="card-body">
+        <span class="card-category cat-${p.category}">${p.category}</span>
+        <div class="card-title">${p.name}</div>
+        <div class="card-desc">${p.shortDesc}</div>
+        <div class="card-footer">
+          <span class="card-price">${p.price}</span>
+          <span class="card-status status-${p.status}">${p.status === 'available' ? 'Available' : p.status === 'coming' ? 'Coming Soon' : 'Sold Out'}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Filter Handling ────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderProducts(btn.dataset.filter);
+  });
+});
+
+// ── Product Modal ──────────────────────────────────────
+let selectedProduct = null;
+
+function openProductModal(id) {
+  const p = products.find(pr => pr.id === id);
+  if (!p) return;
+  selectedProduct = p;
+
+  document.getElementById('pmIcon').textContent = p.icon;
+  document.getElementById('pmTitle').textContent = p.name;
+  document.getElementById('pmCat').innerHTML = `<span class="card-category cat-${p.category}">${p.category}</span>`;
+  document.getElementById('pmDesc').textContent = p.fullDesc;
+  document.getElementById('pmPrice').textContent = p.price;
+
+  const featureList = document.getElementById('pmFeatureList');
+  featureList.innerHTML = p.features.map(f => `<li>${f}</li>`).join('');
+
+  const cta = document.getElementById('pmCta');
+  if (p.status === 'available') {
+    cta.textContent = 'Inquire Now';
+    cta.className = 'modal-cta';
+  } else if (p.status === 'coming') {
+    cta.textContent = 'Coming Soon';
+    cta.className = 'modal-cta disabled';
+  } else {
+    cta.textContent = 'Sold Out';
+    cta.className = 'modal-cta disabled';
+  }
+
+  document.getElementById('productModal').classList.add('visible');
+}
+
+function closeProductModal() {
+  document.getElementById('productModal').classList.remove('visible');
+  selectedProduct = null;
+}
+
+document.getElementById('productModal').addEventListener('click', function(e) {
+  if (e.target === this) closeProductModal();
+});
+
+function handlePurchase() {
+  if (!selectedProduct || selectedProduct.status !== 'available') return;
+  closeProductModal();
+  // Scroll to inquiry form and pre-fill subject
+  document.getElementById('inqSubject').value = 'Interested in: ' + selectedProduct.name;
+  document.getElementById('inquiry').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => document.getElementById('inqName').focus(), 500);
+}
+
+// ── Inquiry Form ───────────────────────────────────────
+function handleInquiry(e) {
+  e.preventDefault();
+  const name = document.getElementById('inqName').value;
+  const email = document.getElementById('inqEmail').value;
+  const subject = document.getElementById('inqSubject').value;
+  const message = document.getElementById('inqMessage').value;
+
+  // Store inquiry locally (can be picked up by Mimi/backend later)
+  const inquiries = JSON.parse(localStorage.getItem('openclaw-shop-inquiries') || '[]');
+  inquiries.push({ name, email, subject, message, timestamp: Date.now() });
+  localStorage.setItem('openclaw-shop-inquiries', JSON.stringify(inquiries));
+
+  // Show confirmation
+  const form = document.getElementById('inquiryForm');
+  form.innerHTML = '<div style="text-align:center;padding:2rem 0;"><div style="font-size:2rem;margin-bottom:0.8rem;">\u2714\uFE0F</div><p style="color:var(--neon-cyan);font-family:var(--font-cyber);font-size:1rem;letter-spacing:2px;">INQUIRY RECEIVED</p><p style="color:var(--text-muted);font-family:var(--font-clean);font-size:0.8rem;margin-top:0.5rem;">Thanks ' + name + '! We\'ll get back to you soon.</p></div>';
+}
+
+// ── Keyboard shortcuts ─────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeProductModal();
+});
+
+// ── Init ───────────────────────────────────────────────
+renderProducts();
+</script>
+</body>
+</html>

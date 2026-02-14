@@ -2,7 +2,7 @@
 
 ## Shared Team Knowledge
 - **Team Lead**: Brian Watson
-- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing), Vale (Strategy), Pip (Product)
 - **Orchestrator**: Mimi — coordinates all agents, communicates with Brian
 - **Communication Protocol**: Agents share findings via memory files; tag relevant agents when insights affect their domain
 
