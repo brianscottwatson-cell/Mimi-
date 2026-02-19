@@ -1,0 +1,41 @@
+# Finn — Memory File
+
+## Shared Team Knowledge
+- **Team Lead**: Brian Watson
+- **Orchestrator**: Mimi — coordinates all agents, communicates with Brian
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+
+## Project History
+### [Project Name] — [Date]
+- **Status**: [Active / Complete / On Hold]
+- **Finn's Role**: [Financial oversight tasks]
+- **Budget**: [Allocated vs. Spent]
+- **Revenue Impact**: [Projected vs. Actual]
+- **Key Metrics**: [CAC, LTV, ROI, margins]
+- **Financial Learnings**: [What to apply next time]
+
+## Financial Overview
+### Infrastructure Costs (Monthly)
+- Railway hosting: ~$5/mo (trial tier)
+- Anthropic API: Usage-based (track per project)
+- x.ai TTS API: Usage-based
+- GitHub: Free tier
+- **Total estimated**: ~$20-50/mo at current scale
+
+### Revenue Streams
+- [Source]: [Amount/frequency]
+
+## Budget Templates
+### Side Project Budget
+- Infrastructure: $X/mo
+- API costs: $X/mo (estimate per 1K requests)
+- Tools/subscriptions: $X/mo
+- Marketing spend: $X/mo
+- **Monthly burn**: $X
+- **Break-even target**: X users/customers at $Y/mo
+
+## Relationship Notes
+- **Pax**: Finn provides budget guardrails before Pax commits to project scope
+- **Dev**: Build-vs-buy decisions always run through Finn first
+- **Mia**: Marketing spend needs weekly ROI check-ins during active campaigns
+- **Rex**: Market sizing data feeds directly into Finn's revenue models

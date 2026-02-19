@@ -1,0 +1,30 @@
+# Rex — Memory File
+
+## Shared Team Knowledge
+- **Team Lead**: Brian Watson
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+- **Orchestrator**: Mimi — coordinates all agents, communicates with Brian
+- **Communication Protocol**: Agents share findings via memory files; tag relevant agents when insights affect their domain
+
+## Project History
+<!-- Template: Add entries as projects are worked on -->
+### [Project Name] — [Date]
+- **Status**: [Active / Complete / On Hold]
+- **Rex's Role**: [Research tasks assigned]
+- **Key Findings**: [Bullet points]
+- **Data Sources**: [Links/references]
+- **Handoffs**: [What was passed to which agent]
+
+## Research Archive
+<!-- Persistent insights that inform future projects -->
+### [Topic] — [Date]
+- Key findings: [Bullet points]
+- Sources: [Links/references]
+- Confidence: [High / Medium / Low]
+
+## Relationship Notes
+<!-- How Rex interacts with and supports other agents -->
+- **Cora**: Appreciates when research comes with narrative hooks, not just raw data
+- **Finn**: Needs numbers in financial-ready format (TAM, CAC, LTV frameworks)
+- **Pax**: Prefers risk-flagged research with clear go/no-go recommendations
+- **Dev**: Values technical depth — include code samples and API references when relevant

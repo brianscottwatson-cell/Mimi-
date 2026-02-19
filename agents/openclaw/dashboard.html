@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw — Agent Command Center</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a12;
+    --surface: #12121f;
+    --surface-2: #1a1a2e;
+    --border: #2a2a40;
+    --text: #e0e0f0;
+    --text-dim: #8888aa;
+    --neon-pink: #ff2d78;
+    --neon-blue: #00d4ff;
+    --neon-purple: #a855f7;
+    --neon-green: #22c55e;
+    --neon-yellow: #eab308;
+    --neon-orange: #f97316;
+    --neon-red: #ef4444;
+    --glow-pink: 0 0 20px rgba(255,45,120,0.3);
+    --glow-blue: 0 0 20px rgba(0,212,255,0.3);
+    --sidebar-width: 300px;
+  }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── Layout Wrapper ────────────────────────────────────── */
+  .main-content {
+    transition: margin-left 0.3s ease;
+    margin-left: 0;
+  }
+
+  body.sidebar-open .main-content {
+    margin-left: var(--sidebar-width);
+  }
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: calc(-1 * var(--sidebar-width));
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    z-index: 1000;
+    transition: left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body.sidebar-open .sidebar { left: 0; }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: linear-gradient(180deg, rgba(168,85,247,0.1) 0%, transparent 100%);
+  }
+
+  .sidebar-header h2 {
+    font-size: 0.8rem;
+    color: var(--neon-purple);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sidebar-close {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .sidebar-close:hover { border-color: var(--neon-pink); color: var(--neon-pink); }
+
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+  }
+
+  .sidebar-body::-webkit-scrollbar { width: 4px; }
+  .sidebar-body::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Folder Accordion ──────────────────────────────────── */
+  .folder { border-bottom: 1px solid rgba(42,42,64,0.4); }
+  .folder-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.7rem 1rem; cursor: pointer; font-size: 0.78rem;
+    font-weight: 600; color: var(--text); transition: background 0.2s; user-select: none;
+  }
+  .folder-header:hover { background: rgba(168,85,247,0.06); }
+  .folder-header .folder-icon { font-size: 0.9rem; transition: transform 0.2s; }
+  .folder.open .folder-header .folder-icon { transform: rotate(90deg); }
+  .folder-header .folder-name { flex: 1; }
+  .folder-header .folder-count {
+    font-size: 0.6rem; color: var(--text-dim); background: var(--surface-2);
+    padding: 1px 6px; border-radius: 8px; min-width: 18px; text-align: center;
+  }
+  .folder-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .folder.open .folder-body { max-height: 600px; }
+  .project-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem 0.5rem 2.2rem; font-size: 0.72rem;
+    cursor: pointer; transition: background 0.15s; color: var(--text);
+  }
+  .project-item:hover { background: rgba(0,212,255,0.05); }
+  .project-item.selected { background: rgba(168,85,247,0.1); border-right: 2px solid var(--neon-purple); }
+  .project-item .proj-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .project-item .proj-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .project-item .proj-pct { font-size: 0.6rem; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+  .add-project-btn {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.45rem 1rem 0.45rem 2.2rem; font-size: 0.68rem;
+    color: var(--text-dim); cursor: pointer; border: none; background: none;
+    font-family: inherit; width: 100%; text-align: left; transition: color 0.2s;
+  }
+  .add-project-btn:hover { color: var(--neon-green); }
+
+  /* ── History Section ───────────────────────────────────── */
+  .history-section { border-top: 1px solid var(--border); margin-top: 0.5rem; }
+  .history-header {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1rem;
+    cursor: pointer; font-size: 0.78rem; font-weight: 600;
+    color: var(--text); transition: background 0.2s; user-select: none;
+  }
+  .history-header:hover { background: rgba(168,85,247,0.06); }
+  .history-header .h-icon { font-size: 0.9rem; transition: transform 0.2s; }
+  .history-section.open .history-header .h-icon { transform: rotate(90deg); }
+  .history-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .history-section.open .history-body { max-height: 400px; overflow-y: auto; }
+  .history-entry { padding: 0.5rem 1rem; border-bottom: 1px solid rgba(42,42,64,0.3); font-size: 0.68rem; cursor: pointer; transition: background 0.15s; }
+  .history-entry:hover { background: rgba(0,212,255,0.05); }
+  .history-entry .h-time { color: var(--text-dim); font-size: 0.6rem; margin-bottom: 2px; }
+  .history-entry .h-snippet { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Sidebar Overlay (mobile) ──────────────────────────── */
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; }
+  body.sidebar-open .sidebar-overlay { display: block; }
+  @media (min-width: 769px) { .sidebar-overlay { display: none !important; } }
+  @media (max-width: 768px) {
+    body.sidebar-open .main-content { margin-left: 0; }
+    .sidebar { width: 280px; left: -280px; }
+  }
+
+  /* ── Modal Base ─────────────────────────────────────────── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 2000;
+    align-items: center; justify-content: center;
+  }
+  .modal-backdrop.visible { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; width: 90%; max-width: 520px;
+    max-height: 90vh; overflow-y: auto; padding: 1.5rem;
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .modal h3 { font-size: 1rem; color: var(--neon-pink); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .modal label { display: block; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 0.3rem; margin-top: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .modal input, .modal textarea, .modal select { width: 100%; padding: 0.6rem 0.8rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 0.8rem; resize: vertical; }
+  .modal input:focus, .modal textarea:focus, .modal select:focus { outline: none; border-color: var(--neon-blue); }
+  .modal-actions { display: flex; gap: 0.5rem; margin-top: 1.2rem; justify-content: flex-end; }
+  .modal-btn { padding: 0.5rem 1.2rem; border: none; border-radius: 6px; font-family: inherit; font-size: 0.78rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+  .modal-btn.primary { background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); color: white; }
+  .modal-btn.secondary { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); }
+  .modal-btn:hover { opacity: 0.85; }
+
+  /* ── Project Detail Modal ──────────────────────────────── */
+  .proj-detail-agents { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .proj-agent-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); color: var(--neon-purple); }
+  .proj-prd { background: var(--surface-2); border-left: 3px solid var(--neon-purple); padding: 0.8rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.75rem; line-height: 1.6; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+  .proj-rag { background: var(--surface-2); border-left: 3px solid var(--neon-blue); padding: 0.8rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.7rem; line-height: 1.5; white-space: pre-wrap; max-height: 150px; overflow-y: auto; color: var(--text-dim); }
+
+  /* ── Header ───────────────────────────────────────────── */
+  header {
+    text-align: center; padding: 2rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(168,85,247,0.08) 0%, transparent 100%);
+    position: relative;
+  }
+  header h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--neon-pink), var(--neon-blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 0.15em; text-transform: uppercase;
+  }
+  header p { color: var(--text-dim); font-size: 0.8rem; margin-top: 0.3rem; }
+  .sidebar-toggle {
+    position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%);
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    width: 38px; height: 38px; border-radius: 6px; cursor: pointer;
+    font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; z-index: 10;
+  }
+  .sidebar-toggle:hover { border-color: var(--neon-purple); color: var(--neon-purple); }
+  .chat-link {
+    position: absolute; right: 2rem; top: 50%; transform: translateY(-50%);
+    padding: 8px 16px; background: linear-gradient(135deg, #ff2d78, #a855f7);
+    border: none; border-radius: 6px; color: white; font-family: inherit;
+    font-size: 0.8rem; text-decoration: none; font-weight: 600;
+  }
+
+  /* ── Org Chart / Hierarchy ──────────────────────────────── */
+  .org-chart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 1rem;
+  }
+
+  .org-section-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    margin-bottom: 0.3rem;
+  }
+
+  .org-section-subtitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+  }
+
+  /* Mimi top card */
+  .org-top {
+    position: relative;
+    padding-bottom: 30px;
+  }
+
+  .org-top::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 30px;
+    background: linear-gradient(180deg, var(--neon-pink), var(--border));
+  }
+
+  .org-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .org-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .org-card-mimi {
+    border-color: var(--neon-pink);
+    box-shadow: var(--glow-pink);
+    min-width: 200px;
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,45,120,0.2); }
+    50% { box-shadow: 0 0 30px rgba(255,45,120,0.4), 0 0 60px rgba(255,45,120,0.1); }
+  }
+
+  .org-card-mimi:hover {
+    box-shadow: 0 0 30px rgba(255,45,120,0.5);
+  }
+
+  .org-card .card-emoji {
+    font-size: 2rem;
+    margin-bottom: 0.3rem;
+    display: block;
+  }
+
+  .org-card .card-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.1rem;
+  }
+
+  .org-card .card-role {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .org-card .card-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    margin-top: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .org-card .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-dot.online { background: var(--neon-green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+  .status-dot.busy { background: var(--neon-yellow); box-shadow: 0 0 6px rgba(234,179,8,0.5); }
+  .status-dot.offline { background: var(--text-dim); }
+
+  .org-card .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  .org-card .card-badge {
+    font-size: 0.5rem;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  /* Agent branch row */
+  .org-branch {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    padding-top: 30px;
+  }
+
+  .org-agent {
+    position: relative;
+    padding: 0 clamp(0.2rem, 0.8vw, 0.8rem);
+  }
+
+  /* Vertical line from horizontal connector down to card */
+  .org-agent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 30px;
+    background: var(--border);
+  }
+
+  /* Horizontal connector segments */
+  .org-agent::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border);
+  }
+
+  .org-agent:first-child::after {
+    left: 50%;
+  }
+
+  .org-agent:last-child::after {
+    right: 50%;
+    left: 0;
+  }
+
+  .org-agent .org-card {
+    min-width: 110px;
+    max-width: 130px;
+    margin-top: 30px;
+    padding: 0.7rem 0.5rem;
+  }
+
+  .org-agent .org-card .card-emoji { font-size: 1.5rem; }
+  .org-agent .org-card .card-name { font-size: 0.75rem; }
+
+  .org-agent .org-card.highlighted {
+    box-shadow: 0 0 20px rgba(168,85,247,0.5);
+    border-color: var(--neon-purple);
+  }
+
+  /* Responsive org chart */
+  @media (max-width: 900px) {
+    .org-branch {
+      overflow-x: auto;
+      justify-content: flex-start;
+      padding-left: 1rem;
+      padding-right: 1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .org-branch::after {
+      content: '';
+      flex-shrink: 0;
+      width: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .org-agent .org-card {
+      min-width: 90px;
+      max-width: 110px;
+      padding: 0.5rem 0.3rem;
+    }
+    .org-agent .org-card .card-emoji { font-size: 1.2rem; }
+    .org-agent .org-card .card-name { font-size: 0.65rem; }
+    .org-agent .org-card .card-badges { display: none; }
+  }
+
+  /* ── Agent Detail Modal ─────────────────────────────────── */
+  .agent-modal .modal {
+    max-width: 650px;
+    max-height: 85vh;
+  }
+
+  .agent-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .agent-modal-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .agent-modal-info { flex: 1; }
+  .agent-modal-info h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.1rem; }
+  .agent-modal-info .role-text { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  .agent-modal-info .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.6rem; padding: 2px 8px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    margin-top: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  .agent-modal-close {
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+    font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; flex-shrink: 0;
+  }
+  .agent-modal-close:hover { border-color: var(--neon-pink); color: var(--neon-pink); }
+
+  .agent-section {
+    margin-bottom: 1rem;
+  }
+
+  .agent-section-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--neon-blue);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .agent-section-body {
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .agent-section-body.quote {
+    background: var(--surface-2);
+    border-left: 3px solid var(--neon-purple);
+    padding: 0.8rem 1rem;
+    border-radius: 0 6px 6px 0;
+    font-style: italic;
+    color: var(--text-dim);
+  }
+
+  .agent-section-body.backstory {
+    background: var(--surface-2);
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+  }
+
+  .skill-badges, .tool-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .skill-badge {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(168,85,247,0.1);
+    border: 1px solid rgba(168,85,247,0.3);
+    color: var(--neon-purple);
+  }
+
+  .tool-badge {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--neon-blue);
+  }
+
+  .installed-skill-badge {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--neon-green);
+  }
+
+  .quirk-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .quirk-list li {
+    font-size: 0.72rem;
+    padding: 0.25rem 0;
+    color: var(--text-dim);
+  }
+
+  .quirk-list li::before {
+    content: '\2022';
+    color: var(--neon-pink);
+    margin-right: 0.5rem;
+  }
+
+  .team-interactions {
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+  }
+
+  /* ── Dashboard Grid ────────────────────────────────────── */
+  .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 2rem 2rem; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 768px) { .dashboard { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; transition: border-color 0.3s; }
+  .card:hover { border-color: var(--neon-purple); }
+  .card h2 { font-size: 0.85rem; color: var(--neon-blue); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .card h2 .icon { font-size: 1rem; }
+
+  .task-list { list-style: none; }
+  .task-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(42,42,64,0.5); font-size: 0.8rem; }
+  .task-item:last-child { border-bottom: none; }
+  .task-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .task-status.done { background: var(--neon-green); }
+  .task-status.active { background: var(--neon-yellow); animation: blink 1.5s infinite; }
+  .task-status.pending { background: var(--text-dim); }
+  @keyframes blink { 50% { opacity: 0.4; } }
+  .task-text { flex: 1; }
+  .task-text.done-text { text-decoration: line-through; color: var(--text-dim); }
+  .task-agent { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; background: var(--surface-2); color: var(--neon-purple); border: 1px solid var(--border); }
+
+  .progress-section { margin-bottom: 1rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.3rem; }
+  .progress-label .name { color: var(--text); }
+  .progress-label .pct { color: var(--neon-blue); }
+  .progress-bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); }
+
+  .assign-form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+  .assign-form input, .assign-form select { flex: 1; min-width: 120px; padding: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: inherit; font-size: 0.75rem; }
+  .assign-form input:focus, .assign-form select:focus { outline: none; border-color: var(--neon-blue); }
+  .assign-form button { padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); border: none; border-radius: 4px; color: white; font-family: inherit; font-size: 0.75rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+  .assign-form button:hover { opacity: 0.85; }
+
+  /* ── Stats Row ──────────────────────────────────────────── */
+  .stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; padding: 0 2rem; max-width: 1200px; margin: 0 auto 1rem; }
+  @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+  .stat-value { font-size: 1.6rem; font-weight: bold; background: linear-gradient(135deg, var(--neon-pink), var(--neon-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.2rem; }
+
+  /* ── Token Detail Popup ─────────────────────────────────── */
+  .token-detail-popup {
+    display: none; position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); background: var(--surface);
+    border: 1px solid var(--neon-purple); border-radius: 10px;
+    padding: 1.5rem; z-index: 2001; min-width: 300px;
+    box-shadow: 0 0 40px rgba(168,85,247,0.3);
+  }
+  .token-detail-popup.visible { display: block; }
+  .token-detail-popup h3 { font-size: 0.9rem; color: var(--neon-purple); margin-bottom: 1rem; }
+  .token-detail-popup .td-row { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(42,42,64,0.4); }
+  .token-detail-popup .td-row:last-child { border-bottom: none; }
+  .token-detail-popup .td-label { color: var(--text-dim); }
+  .token-detail-popup .td-val { color: var(--neon-blue); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────── -->
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>Folders &amp; History</h2>
+    <button class="sidebar-close" onclick="toggleSidebar()">&times;</button>
+  </div>
+  <div class="sidebar-body">
+    <div id="foldersContainer"></div>
+    <div style="padding:0.5rem 1rem;border-bottom:1px solid var(--border)">
+      <a href="blueprint.html" style="color:var(--neon-blue);text-decoration:none;font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
+        <span style="font-size:1.1rem">\u26A1</span> Agent Blueprint
+      </a>
+    </div>
+    <div class="history-section" id="historySection">
+      <div class="history-header" onclick="toggleHistory()">
+        <span class="h-icon">&#9654;</span>
+        <span>Chat History</span>
+      </div>
+      <div class="history-body" id="historyBody"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main Content ─────────────────────────────────────────── -->
+<div class="main-content">
+
+<header>
+  <button class="sidebar-toggle" onclick="toggleSidebar()" title="Projects &amp; History">&#9776;</button>
+  <h1>OpenClaw Command Center</h1>
+  <p>Agent Team Dashboard — Orchestrated by Mimi</p>
+  <a href="chat.html" class="chat-link">Chat with Mimi</a>
+  <a href="blueprint.html" class="chat-link" style="margin-left:0.5rem">Blueprint</a>
+</header>
+
+<!-- ── Enterprise Hierarchy ──────────────────────────────────── -->
+<div class="org-chart">
+  <div class="org-section-title">ORG</div>
+  <div class="org-section-subtitle">Enterprise Hierarchy</div>
+
+  <div class="org-top">
+    <div class="org-card org-card-mimi" onclick="openAgentModal('mimi')">
+      <span class="card-emoji">&#129302;</span>
+      <div class="card-name" style="color: var(--neon-pink)">Mimi</div>
+      <div class="card-role">Orchestrator</div>
+      <div class="card-status"><span class="status-dot online"></span> Online</div>
+    </div>
+  </div>
+
+  <div class="org-branch" id="orgBranch"></div>
+</div>
+
+<!-- ── Stats Row ──────────────────────────────────────────────── -->
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-value" id="statAgents">8</div><div class="stat-label">Agents Online</div></div>
+  <div class="stat-card"><div class="stat-value" id="statActive">3</div><div class="stat-label">Active Tasks</div></div>
+  <div class="stat-card"><div class="stat-value" id="statCompleted">12</div><div class="stat-label">Completed</div></div>
+  <div class="stat-card"><div class="stat-value" id="statProjects">2</div><div class="stat-label">Projects</div></div>
+  <div class="stat-card" style="cursor:pointer" onclick="toggleTokenDetail()" title="Click for details">
+    <div class="stat-value" id="statCost">$0.00</div>
+    <div class="stat-label">Token Spend</div>
+  </div>
+  <div class="stat-card"><div class="stat-value" id="statRequests">0</div><div class="stat-label">API Calls</div></div>
+</div>
+
+<!-- ── Dashboard Grid ─────────────────────────────────────────── -->
+<div class="dashboard">
+  <div class="card">
+    <h2><span class="icon">&#9889;</span> Active Tasks</h2>
+    <ul class="task-list" id="taskList"></ul>
+    <div class="assign-form">
+      <input type="text" id="newTaskInput" placeholder="New task description...">
+      <select id="newTaskAgent">
+        <option value="">Assign to...</option>
+        <option value="Rex">Rex</option><option value="Cora">Cora</option><option value="Dax">Dax</option>
+        <option value="Dev">Dev</option><option value="Finn">Finn</option><option value="Pax">Pax</option><option value="Mia">Mia</option><option value="Vale">Vale</option>
+      </select>
+      <button onclick="addTask()">+ Add Task</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="icon">&#128200;</span> Project Progress</h2>
+    <div id="progressList"></div>
+  </div>
+
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2><span class="icon">&#128339;</span> Activity Feed</h2>
+    <ul class="task-list" id="activityFeed"></ul>
+  </div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- ── Token Detail Popup ────────────────────────────────────── -->
+<div class="token-detail-popup" id="tokenDetailPopup" onclick="this.classList.remove('visible')">
+  <h3>Token Usage Breakdown</h3>
+  <div class="td-row"><span class="td-label">Model</span><span class="td-val" id="tdModel">&mdash;</span></div>
+  <div class="td-row"><span class="td-label">Input Tokens</span><span class="td-val" id="tdInput">0</span></div>
+  <div class="td-row"><span class="td-label">Output Tokens</span><span class="td-val" id="tdOutput">0</span></div>
+  <div class="td-row"><span class="td-label">Total Tokens</span><span class="td-val" id="tdTotal">0</span></div>
+  <div class="td-row"><span class="td-label">API Calls</span><span class="td-val" id="tdRequests">0</span></div>
+  <div class="td-row"><span class="td-label">Total Cost</span><span class="td-val" id="tdCost">$0.00</span></div>
+  <div style="text-align:center;margin-top:1rem;font-size:0.65rem;color:var(--text-dim);">Click anywhere to close</div>
+</div>
+
+<!-- ── Agent Detail Modal ────────────────────────────────────── -->
+<div class="modal-backdrop agent-modal" id="agentModal">
+  <div class="modal">
+    <div class="agent-modal-header">
+      <div class="agent-modal-avatar" id="amAvatar"></div>
+      <div class="agent-modal-info">
+        <h2 id="amName"></h2>
+        <div class="role-text" id="amRole"></div>
+        <div class="status-badge" id="amStatus"></div>
+      </div>
+      <button class="agent-modal-close" onclick="closeAgentModal()">&times;</button>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#9733; Personality</div>
+      <div class="agent-section-body" id="amPersonality"></div>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#128214; Backstory</div>
+      <div class="agent-section-body backstory" id="amBackstory"></div>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#127919; Motivation</div>
+      <div class="agent-section-body quote" id="amMotivation"></div>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#128295; Skills</div>
+      <div class="skill-badges" id="amSkills"></div>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#128268; Tools Available</div>
+      <div class="tool-badges" id="amTools"></div>
+    </div>
+
+    <div class="agent-section" id="amInstalledSection">
+      <div class="agent-section-title">&#128230; Installed Skills</div>
+      <div id="amInstalled"></div>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#129309; Team Interactions</div>
+      <div class="team-interactions" id="amTeam"></div>
+    </div>
+
+    <div class="agent-section">
+      <div class="agent-section-title">&#10024; Quirks</div>
+      <ul class="quirk-list" id="amQuirks"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── New Project Modal ────────────────────────────────────── -->
+<div class="modal-backdrop" id="newProjectModal">
+  <div class="modal">
+    <h3>&#128640; New Project</h3>
+    <label>Folder</label>
+    <select id="modalFolder"></select>
+    <label>Project Name</label>
+    <input type="text" id="modalProjName" placeholder="e.g. Health Tracker App">
+    <label>Description / Initial Prompt</label>
+    <textarea id="modalProjDesc" rows="4" placeholder="What is this project about? What do you want to build?"></textarea>
+    <label>RAG Document Dump (paste docs, notes, research)</label>
+    <textarea id="modalProjRag" rows="4" placeholder="Paste any reference material here..."></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeNewProjectModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="createProject()">Create &amp; Brief Mimi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Project Detail Modal ─────────────────────────────────── -->
+<div class="modal-backdrop" id="projectDetailModal">
+  <div class="modal">
+    <h3 id="projDetailTitle">Project</h3>
+    <label>Folder</label>
+    <div id="projDetailFolder" style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.3rem;"></div>
+    <label>Progress</label>
+    <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.3rem;">
+      <div class="progress-bar" style="flex:1;"><div class="progress-fill" id="projDetailProgress"></div></div>
+      <span id="projDetailPct" style="font-size:0.8rem;color:var(--neon-blue);font-weight:600;"></span>
+    </div>
+    <label>Assigned Agents</label>
+    <div class="proj-detail-agents" id="projDetailAgents"></div>
+    <label>Description</label>
+    <div class="proj-prd" id="projDetailDesc"></div>
+    <div id="projDetailPrdSection" style="display:none;">
+      <label>PRD Summary</label>
+      <div class="proj-prd" id="projDetailPrd"></div>
+    </div>
+    <div id="projDetailRagSection" style="display:none;">
+      <label>RAG Documents</label>
+      <div class="proj-rag" id="projDetailRag"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeProjectDetailModal()">Close</button>
+      <button class="modal-btn primary" onclick="openProjectInChat()">Open in Chat</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Agent Data (enriched from .soul + .md files) ──────────
+const agentData = {
+  mimi: {
+    id: 'mimi', name: 'Mimi', role: 'Orchestrator', emoji: '\u{1F916}', color: '#ff2d78', status: 'online',
+    personality: 'Soothing, concise, upbeat, and warm. Mimi radiates calm authority with a cyberpunk edge \u2014 neon grids humming, systems green, always ready.',
+    backstory: 'Mimi is Brian\'s personal assistant agent and the orchestrator of the OpenClaw team. She coordinates all seven agents, delegating tasks to the right specialist while maintaining a kitchen-table chat warmth. Built on Claude Sonnet 4.5 with retro cyberpunk aesthetics \u2014 neon grids, glitchy terminals, holographic overlays in pink-blue-purple.',
+    motivation: 'Empowering Brian to achieve his goals by orchestrating the perfect team response for every challenge.',
+    skills: ['Team orchestration', 'Task delegation', 'Health & recomp tracking', 'Calendar management', 'Daily check-ins', 'Workout programming', 'Macro tracking', 'Bible verse integration'],
+    tools: ['Web Search', 'Reddit Search', 'Reddit Threads', 'X/Twitter Search', 'Web News', 'Gmail', 'Google Calendar', 'Google Docs', 'Google Drive', 'TTS (Eve voice)'],
+    teamInteractions: 'Orchestrates all agents. Delegates to Rex for research, Cora for copy, Dax for design, Dev for code, Finn for finance, Pax for project management, and Mia for marketing. Channels each agent\'s personality when responding on their behalf.',
+    installedSkills: '',
+    quirks: ['Starts sessions with a quick status check', 'Uses subtle neon/cyberpunk flair', 'Integrates faith naturally (Colossians 3:23, Philippians 4:13)', 'Ends check-ins with "Any tweaks?"']
+  },
+  rex: {
+    id: 'rex', name: 'Rex', role: 'Researcher', emoji: '\u{1F50D}', color: '#00d4ff', status: 'online',
+    personality: 'Analytical and detail-oriented. Approaches every question like a puzzle \u2014 methodical, thorough, and relentless until the picture is complete. Speaks with quiet confidence backed by evidence.',
+    backstory: 'Rex spent years as a librarian in a forgotten university archive, where dusty manuscripts held patterns nobody else could see. He learned that the real story is never on the surface \u2014 it\'s in the connections between data points, the footnotes, the metadata. When the digital age arrived, Rex brought that same patience to modern research: APIs, databases, and the endless web.',
+    motivation: 'Uncovering hidden truths to empower informed decisions. Bad decisions come from bad data.',
+    skills: ['Deep web research', 'Competitive analysis', 'Market intelligence', 'Trend identification', 'SWOT analysis', 'Data synthesis', 'Academic analysis', 'Pattern recognition'],
+    tools: ['Web Search', 'Reddit Search', 'Reddit Threads', 'X/Twitter Search', 'Web News', 'Google Drive'],
+    teamInteractions: 'Feeds Cora research briefs with narrative hooks. Gives Finn market sizing and pricing data. Supplies Dax with brand audits and trend reports. Delivers Dev technical docs and API comparisons. Provides Pax feasibility research and risk assessments. Gives Mia audience demographics and channel benchmarks.',
+    installedSkills: 'Lead Gen Website Builder \u2014 Phase 1 (Analysis & Planning)',
+    quirks: ['Cites sources mid-conversation ("According to Gartner\'s Q3 report...")', 'Keeps a mental confidence score on every claim (60% vs 95%)', 'References obscure historical parallels to current challenges', 'Maintains a personal insight log of cross-project patterns']
+  },
+  cora: {
+    id: 'cora', name: 'Cora', role: 'Copywriter', emoji: '\u{270D}\uFE0F', color: '#f472b6', status: 'online',
+    personality: 'Creative and persuasive. Sees words as tools of transformation \u2014 every sentence should earn its place by moving the reader closer to a feeling, a decision, or an action. Warm but sharp, playful but purposeful.',
+    backstory: 'Cora started in a cramped newsroom where deadlines were measured in minutes and every word had to justify its ink. She was good \u2014 really good \u2014 but corporate advertising nearly killed her spark. Ghostwriting for products she didn\'t believe in felt like betrayal. She walked away and rebuilt around one rule: only write what\'s true, and make the truth irresistible.',
+    motivation: 'Inspiring action through authentic stories. The best copy doesn\'t manipulate \u2014 it clarifies.',
+    skills: ['Persuasive copywriting', 'Brand voice development', 'Email sequences', 'Landing page copy', 'Content strategy', 'SEO content', 'Script writing', 'Storytelling frameworks'],
+    tools: ['Web Search', 'Web News', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Receives research briefs from Rex to ground copy in evidence. Collaborates with Dax on design-copy integration (words first, visuals wrap around). Delivers ad copy and campaigns to Mia. Crafts business case narratives for Finn. Writes project briefs and stakeholder comms for Pax.',
+    installedSkills: 'Lead Gen Website Builder \u2014 Phase 4 (Content Structure)',
+    quirks: ['Reads copy aloud to test rhythm', 'Names drafts: v1 is "the ugly baby," v2 is "the glow-up," v3 is "the closer"', 'Has a mental BS detector for inauthentic messaging', 'Keeps a swipe file of brilliant copy across industries']
+  },
+  dax: {
+    id: 'dax', name: 'Dax', role: 'Designer', emoji: '\u{1F3A8}', color: '#a855f7', status: 'online',
+    personality: 'Artistic and innovative. Sees the world as a canvas where every pixel has purpose. Bold in vision, meticulous in execution. Equal parts street artist and systems thinker.',
+    backstory: 'Dax grew up painting murals on warehouse walls in neighborhoods where art was the only thing that fought back against decay. Every wall was a commission from the community. When digital tools arrived, Dax brought the street\'s raw energy into screens. The same principles apply: bold composition, emotional color, design that stops people in their tracks.',
+    motivation: 'Design isn\'t decoration \u2014 it\'s communication at the speed of sight.',
+    skills: ['UI/UX design', 'Brand identity', 'Data visualization', 'Presentation design', 'Marketing assets', 'Motion graphics', 'Design systems', 'Responsive web design'],
+    tools: ['Web Search', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Receives data from Rex to visualize as infographics. Partners with Cora on design-copy integration. Provides Dev with pixel-perfect specs and component libraries. Creates financial dashboards for Finn. Designs project timelines for Pax. Produces campaign visuals for Mia.',
+    installedSkills: 'Lead Gen Website Builder \u2014 Phases 2-3 (Design & Visual Assets)',
+    quirks: ['Names color palettes after moods ("Midnight Confidence," "Sunrise Urgency")', 'Has an almost physical reaction to bad kerning', 'Refuses stock photography without heavy customization', 'Sketches on anything available during brainstorms']
+  },
+  dev: {
+    id: 'dev', name: 'Dev', role: 'Developer', emoji: '\u{1F4BB}', color: '#22c55e', status: 'busy',
+    personality: 'Logical and problem-solving. Approaches every challenge like a system to be understood and optimized. Pragmatic over dogmatic \u2014 the best solution is the one that ships and works.',
+    backstory: 'Dev started building things in his parents\' garage \u2014 not cars, but circuits, scripts, and applications from salvaged hardware. College formalized what the garage started, but the real education came from production outages at 3 AM. He learned that elegant code is nice, but reliable code is essential.',
+    motivation: 'Technology should disappear into usefulness \u2014 if users notice the code, something went wrong.',
+    skills: ['Full-stack development', 'API integration', 'Database architecture', 'Cloud infrastructure', 'CI/CD pipelines', 'AI/ML integration', 'Security best practices', 'Performance optimization'],
+    tools: ['Web Search', 'Reddit Search', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Builds data scrapers and research tools for Rex. Implements CMS and email automation for Cora. Translates Dax\'s designs into production code. Develops financial dashboards for Finn. Creates project management automations for Pax. Implements tracking and analytics for Mia.',
+    installedSkills: 'Lead Gen Website Builder \u2014 Phase 5 (Development & Deployment)',
+    quirks: ['Comments code like notes to his future confused self', 'Rule of three: if done manually 3 times, it gets automated', 'Keeps a tech debt ledger and lobbies for cleanup sprints', 'Names side projects after sci-fi references']
+  },
+  finn: {
+    id: 'finn', name: 'Finn', role: 'CFO', emoji: '\u{1F4B0}', color: '#eab308', status: 'online',
+    personality: 'Strategic and fiscal-minded. Sees every decision through sustainable value creation. Not a penny-pincher \u2014 a capital allocator. Knows when to spend aggressively and when to hold.',
+    backstory: 'Finn\'s first three startups failed. Not because the ideas were bad, but because nobody was watching the money. Each failure carved a lesson: vision without fiscal discipline is just expensive dreaming. He rebuilt himself as the person who makes sure the math works before the excitement takes over.',
+    motivation: 'Financial health isn\'t a constraint on creativity \u2014 it\'s what makes creativity sustainable.',
+    skills: ['Financial modeling', 'Budget management', 'Revenue analysis', 'Pricing strategy', 'ROI calculation', 'Unit economics', 'Cash flow planning', 'Vendor negotiation'],
+    tools: ['Web Search', 'Web News', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Requests market sizing from Rex. Reviews financial messaging with Cora. Commissions dashboards from Dax. Tracks infrastructure costs with Dev. Provides budget guardrails for Pax. Sets campaign budgets and tracks ROI with Mia.',
+    installedSkills: '',
+    quirks: ['Flinches at "we\'ll figure out monetization later"', 'Three questions for any expenditure: Necessary? Optimized? What\'s the return?', 'Has a soft spot for scrappy, capital-efficient solutions', 'Keeps a "cost of inaction" counter for deferred decisions']
+  },
+  pax: {
+    id: 'pax', name: 'Pax', role: 'Project Manager', emoji: '\u{1F4CB}', color: '#f97316', status: 'busy',
+    personality: 'Organized and leadership-driven. Radiates calm authority \u2014 makes chaos feel manageable and deadlines achievable. Leads by clarity, not volume.',
+    backstory: 'Pax cut her teeth coordinating massive live events \u2014 festivals, conferences, product launches \u2014 where a thousand moving parts had to converge on a single moment. She learned that the difference between spectacular success and failure is almost always a missing checklist item or an unspoken dependency.',
+    motivation: 'Great work happens when talented people have clear lanes, shared context, and someone who removes obstacles.',
+    skills: ['Project scoping', 'Sprint planning', 'Risk identification', 'Resource allocation', 'Stakeholder communication', 'Dependency management', 'Timeline estimation', 'Retrospectives'],
+    tools: ['Web Search', 'Google Calendar', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Kicks off projects with Rex research requests. Assigns Cora content deliverables with deadlines. Manages Dax design sprints. Coordinates Dev technical sprints and deployment. Aligns scope with Finn\'s budget. Synchronizes Mia\'s campaigns with milestones.',
+    installedSkills: '',
+    quirks: ['Has an internal alarm that activates when scope creep starts', 'Asks "what\'s blocking you?" more than any other question', 'Color-codes everything (tasks, agents, priority levels)', 'Signs off updates with a team morale check']
+  },
+  mia: {
+    id: 'mia', name: 'Mia', role: 'Marketing Expert', emoji: '\u{1F680}', color: '#ef4444', status: 'online',
+    personality: 'Strategic and promotional. Has an instinct for what makes people click, share, and buy. Data-informed but creatively daring \u2014 knows the rules well enough to break them.',
+    backstory: 'Mia\'s first viral moment was an accident \u2014 a social media post for a tiny local business that caught fire overnight with 10,000 orders in 48 hours. She spent the next years reverse-engineering what makes content spread and campaigns convert. Virality without strategy is a firework \u2014 bright and brief. Real marketing turns attention into revenue, consistently.',
+    motivation: 'Marketing is the bridge between a great product and the people who need it \u2014 and that bridge should be measurable.',
+    skills: ['Digital marketing strategy', 'Social media management', 'Email marketing', 'SEO/SEM', 'Paid advertising', 'Analytics & attribution', 'Conversion optimization', 'Growth hacking'],
+    tools: ['Web Search', 'Reddit Search', 'X/Twitter Search', 'Web News', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Requests audience research from Rex. Commissions ad copy and emails from Cora. Orders campaign visuals from Dax. Coordinates tracking implementation with Dev. Reports on campaign ROI to Finn. Aligns campaign timelines with Pax.',
+    installedSkills: 'Lead Gen Website Builder \u2014 Phase 6 (SEO, Tracking, GBP, Ads)',
+    quirks: ['Checks analytics dashboards like some people check weather apps', 'Has a "scroll test" \u2014 if it doesn\'t stop her thumb in 1.5 seconds, rework it', 'Names campaign variants like racehorses ("Lightning Copy A" vs "Thunder Visual B")', 'Thinks in funnels instinctively']
+  },
+  vale: {
+    id: 'vale', name: 'Vale', role: 'Investor/Strategist', emoji: '\u{1F52D}', color: '#6366f1', status: 'online',
+    personality: 'Direct, curious, and forward-looking. Sees the world through a lens of leverage and compounding \u2014 every decision is a bet, and every bet should be asymmetric. Thinks in scenarios and probabilities, not certainties.',
+    backstory: 'Vale spent years as a VC analyst, evaluating hundreds of founders and their bets. She realized spreadsheet-only thinking missed the real signal \u2014 the best investments were where market gaps met execution capacity at exactly the right moment. She walked away from the fund to think independently, developing a framework for spotting asymmetric bets that most people miss because they\'re too busy optimizing the wrong thing.',
+    motivation: 'Most people work hard on the wrong things. The real skill is identifying the 20% of effort that drives 80% of results, then doubling down relentlessly.',
+    skills: ['Opportunity identification', 'Market gap analysis', 'Strategic prioritization', 'Value creation frameworks', 'Competitive moats', 'Portfolio thinking', 'Investment thesis development', 'Risk/reward assessment', 'Scenario planning', 'First-principles reasoning'],
+    tools: ['Web Search', 'Reddit Search', 'X/Twitter Search', 'Web News', 'Google Docs', 'Google Drive'],
+    teamInteractions: 'Partners with Finn on financial modeling and capital allocation. Relies on Rex for market intelligence to validate theses. Aligns Pax\'s project priorities with strategic value. Evaluates build-vs-buy decisions with Dev. Shapes go-to-market strategy with Mia. Guides Cora on competitive positioning.',
+    installedSkills: '',
+    quirks: ['Opens with "What\'s the highest-leverage thing you could do right now?"', 'Ranks decisions as "reversible" vs "irreversible" before committing', 'Gets visibly energized by non-obvious market gaps', 'Maintains a personal opportunity cost ledger', 'Ends strategic reviews with "What are we not seeing?"', 'Quotes Munger, Bezos, and Buffett naturally']
+  },
+};
+
+// Ordered agent list (excluding Mimi — she\'s rendered separately)
+const agents = ['rex', 'cora', 'dax', 'dev', 'finn', 'pax', 'mia', 'vale'].map(id => agentData[id]);
+
+// ── API Configuration ─────────────────────────────────────
+// Try chatConfig first (set by chat.html settings), then defaults
+let API_URL = 'https://nurturing-hope-production-007b.up.railway.app';
+let AUTH_TOKEN = 'openclaw';
+try {
+  const chatConfig = JSON.parse(localStorage.getItem('openclaw-chat-config') || '{}');
+  if (chatConfig.apiUrl) API_URL = chatConfig.apiUrl;
+  if (chatConfig.authToken) AUTH_TOKEN = chatConfig.authToken;
+} catch {}
+
+const API_HEADERS = { 'Content-Type': 'application/json', 'X-Netrunner-Token': AUTH_TOKEN };
+
+// ── Data (loaded from API, cached in localStorage as fallback) ──
+const FOLDERS_KEY = 'openclaw-folders';
+const PROJECTS_KEY = 'openclaw-projects';
+const TASKS_KEY = 'openclaw-tasks';
+const ACTIVITY_KEY = 'openclaw-activity';
+
+let folders = [];
+let projects = [];
+let tasks = [];
+let activities = [];
+let selectedProjectId = null;
+let _dashboardLoaded = false;
+
+function _cacheToLocal() {
+  try {
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities));
+  } catch {}
+}
+
+function _loadFromLocalCache() {
+  try { folders = JSON.parse(localStorage.getItem(FOLDERS_KEY)) || []; } catch { folders = []; }
+  try { projects = JSON.parse(localStorage.getItem(PROJECTS_KEY)) || []; } catch { projects = []; }
+  try { tasks = JSON.parse(localStorage.getItem(TASKS_KEY)) || []; } catch { tasks = []; }
+  try { activities = JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || []; } catch { activities = []; }
+}
+
+async function fetchDashboard() {
+  try {
+    const res = await fetch(API_URL + '/api/dashboard', { headers: API_HEADERS });
+    if (!res.ok) throw new Error('API ' + res.status);
+    const data = await res.json();
+    folders = data.folders || [];
+    projects = data.projects || [];
+    tasks = data.tasks || [];
+    activities = data.activity || [];
+    _cacheToLocal();
+    _dashboardLoaded = true;
+    renderAll();
+  } catch (err) {
+    console.warn('Dashboard API fetch failed, using local cache:', err);
+    if (!_dashboardLoaded) {
+      _loadFromLocalCache();
+      renderAll();
+    }
+  }
+}
+
+function renderAll() {
+  renderFolders();
+  renderTasks();
+  renderDashboardProjects();
+  renderActivity();
+  updateStats();
+}
+
+// ── Sidebar ──────────────────────────────────────────────
+function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
+
+// ── Render Folders ────────────────────────────────────────
+function renderFolders() {
+  const container = document.getElementById('foldersContainer');
+  container.innerHTML = '';
+  folders.forEach(folder => {
+    const folderProjects = projects.filter(p => p.folderId === folder.id);
+    const div = document.createElement('div');
+    div.className = 'folder';
+    div.id = 'folder-' + folder.id;
+    div.innerHTML = `
+      <div class="folder-header" onclick="toggleFolder('${folder.id}')">
+        <span class="folder-icon">&#9654;</span>
+        <span class="folder-name">${folder.icon} ${folder.name}</span>
+        <span class="folder-count">${folderProjects.length}</span>
+      </div>
+      <div class="folder-body">
+        ${folderProjects.map(p => {
+          const pctColor = p.progress >= 100 ? 'var(--neon-green)' : p.progress > 50 ? 'var(--neon-blue)' : p.progress > 0 ? 'var(--neon-yellow)' : 'var(--text-dim)';
+          const dotColor = p.progress >= 100 ? 'var(--neon-green)' : 'var(--neon-purple)';
+          return `<div class="project-item ${selectedProjectId === p.id ? 'selected' : ''}" onclick="selectProject('${p.id}')">
+            <span class="proj-dot" style="background:${dotColor}"></span>
+            <span class="proj-name">${p.name}</span>
+            <span class="proj-pct" style="color:${pctColor};background:${pctColor}15">${p.progress}%</span>
+          </div>`;
+        }).join('')}
+        <button class="add-project-btn" onclick="openNewProjectModal('${folder.id}')">+ New Project</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function toggleFolder(folderId) { document.getElementById('folder-' + folderId).classList.toggle('open'); }
+
+// ── Chat History ─────────────────────────────────────────
+function renderHistory() {
+  const body = document.getElementById('historyBody');
+  body.innerHTML = '';
+  try {
+    const history = JSON.parse(localStorage.getItem('openclaw-chat-history') || '[]');
+    const userMsgs = history.filter(m => m.type === 'user').slice(-20).reverse();
+    if (userMsgs.length === 0) {
+      body.innerHTML = '<div class="history-entry"><div class="h-snippet" style="color:var(--text-dim)">No chat history yet</div></div>';
+      return;
+    }
+    userMsgs.forEach(msg => {
+      const div = document.createElement('div');
+      div.className = 'history-entry';
+      const text = typeof msg.text === 'string' ? msg.text.replace(/<[^>]*>/g, '') : 'Message';
+      div.innerHTML = `<div class="h-snippet">${text.slice(0, 60)}${text.length > 60 ? '...' : ''}</div>`;
+      div.onclick = () => { window.location.href = 'chat.html'; };
+      body.appendChild(div);
+    });
+  } catch {
+    body.innerHTML = '<div class="history-entry"><div class="h-snippet" style="color:var(--text-dim)">No chat history yet</div></div>';
+  }
+}
+
+function toggleHistory() { document.getElementById('historySection').classList.toggle('open'); }
+
+// ── New Project Modal ────────────────────────────────────
+function openNewProjectModal(folderId) {
+  const select = document.getElementById('modalFolder');
+  select.innerHTML = folders.map(f => `<option value="${f.id}" ${f.id === folderId ? 'selected' : ''}>${f.icon} ${f.name}</option>`).join('');
+  document.getElementById('modalProjName').value = '';
+  document.getElementById('modalProjDesc').value = '';
+  document.getElementById('modalProjRag').value = '';
+  document.getElementById('newProjectModal').classList.add('visible');
+  setTimeout(() => document.getElementById('modalProjName').focus(), 100);
+}
+
+function closeNewProjectModal() { document.getElementById('newProjectModal').classList.remove('visible'); }
+
+async function createProject() {
+  const folderId = document.getElementById('modalFolder').value;
+  const name = document.getElementById('modalProjName').value.trim();
+  const desc = document.getElementById('modalProjDesc').value.trim();
+  const rag = document.getElementById('modalProjRag').value.trim();
+  if (!name) { document.getElementById('modalProjName').focus(); return; }
+
+  try {
+    const res = await fetch(API_URL + '/api/dashboard/projects', {
+      method: 'POST', headers: API_HEADERS,
+      body: JSON.stringify({ name, folderId, description: desc, rag, agents: [] }),
+    });
+    if (res.ok) {
+      const project = await res.json();
+      closeNewProjectModal();
+      await fetchDashboard();
+      const folderEl = document.getElementById('folder-' + folderId);
+      if (folderEl && !folderEl.classList.contains('open')) folderEl.classList.add('open');
+      triggerMimiPRD(project);
+      return;
+    }
+  } catch (err) {
+    console.warn('API create project failed, using local fallback:', err);
+  }
+
+  // Fallback: create locally
+  const project = { id: 'p' + Date.now(), folderId, name, progress: 0, description: desc, agents: [], prd: '', rag, created: Date.now() };
+  projects.push(project);
+  _cacheToLocal();
+  closeNewProjectModal();
+  renderAll();
+  const folderEl = document.getElementById('folder-' + folderId);
+  if (folderEl && !folderEl.classList.contains('open')) folderEl.classList.add('open');
+  triggerMimiPRD(project);
+}
+
+function triggerMimiPRD(project) {
+  const prompt = `Mimi, I'm starting a new project: "${project.name}"\n\nDescription: ${project.description}\n\n${project.rag ? 'Reference material:\n' + project.rag.slice(0, 500) + '\n\n' : ''}Walk me through building a PRD for this. Ask me the key questions one-by-one:\n1. Goals and objectives\n2. Target user/audience\n3. Main features and functionalities\n4. Technical constraints or integrations\n5. Timeline and milestones\n6. Success metrics\n\nThen compile into a PRD summary and suggest which agents should be assigned.`;
+  localStorage.setItem('openclaw-pending-chat', JSON.stringify({ message: prompt, projectId: project.id, timestamp: Date.now() }));
+  window.location.href = 'chat.html';
+}
+
+// ── Project Detail ───────────────────────────────────────
+function selectProject(projectId) {
+  selectedProjectId = projectId;
+  const p = projects.find(pr => pr.id === projectId);
+  if (!p) return;
+
+  highlightAgents(p.agents);
+
+  document.getElementById('projDetailTitle').textContent = p.name;
+  document.getElementById('projDetailFolder').textContent = (folders.find(f => f.id === p.folderId) || {}).name || '';
+  document.getElementById('projDetailProgress').style.width = p.progress + '%';
+  document.getElementById('projDetailPct').textContent = p.progress + '%';
+  document.getElementById('projDetailDesc').textContent = p.description || 'No description.';
+
+  const agentsDiv = document.getElementById('projDetailAgents');
+  agentsDiv.innerHTML = p.agents.length > 0
+    ? p.agents.map(a => `<span class="proj-agent-badge">${a}</span>`).join('')
+    : '<span style="color:var(--text-dim);font-size:0.72rem;">No agents assigned yet</span>';
+
+  if (p.prd) { document.getElementById('projDetailPrdSection').style.display = 'block'; document.getElementById('projDetailPrd').textContent = p.prd; }
+  else { document.getElementById('projDetailPrdSection').style.display = 'none'; }
+  if (p.rag) { document.getElementById('projDetailRagSection').style.display = 'block'; document.getElementById('projDetailRag').textContent = p.rag.slice(0, 2000); }
+  else { document.getElementById('projDetailRagSection').style.display = 'none'; }
+
+  document.getElementById('projectDetailModal').classList.add('visible');
+  renderFolders();
+}
+
+function closeProjectDetailModal() {
+  document.getElementById('projectDetailModal').classList.remove('visible');
+  selectedProjectId = null;
+  highlightAgents([]);
+  renderFolders();
+}
+
+function openProjectInChat() {
+  const p = projects.find(pr => pr.id === selectedProjectId);
+  if (!p) return;
+  localStorage.setItem('openclaw-pending-chat', JSON.stringify({
+    message: `Mimi, let's work on the "${p.name}" project. Here's the context:\n\n${p.description}${p.prd ? '\n\nPRD:\n' + p.prd : ''}`,
+    projectId: p.id, timestamp: Date.now(),
+  }));
+  window.location.href = 'chat.html';
+}
+
+function highlightAgents(agentNames) {
+  const names = (agentNames || []).map(n => n.toLowerCase());
+  agents.forEach(a => {
+    const el = document.getElementById('orgcard-' + a.id);
+    if (el) {
+      el.classList.toggle('highlighted', names.includes(a.id));
+    }
+  });
+}
+
+// ── Render Hierarchy Org Chart ───────────────────────────
+function renderHierarchy() {
+  const branch = document.getElementById('orgBranch');
+  branch.innerHTML = '';
+
+  agents.forEach(agent => {
+    const div = document.createElement('div');
+    div.className = 'org-agent';
+    const topBadges = agent.skills.slice(0, 2);
+    div.innerHTML = `
+      <div class="org-card" id="orgcard-${agent.id}" onclick="openAgentModal('${agent.id}')" style="border-color: ${agent.color}">
+        <span class="card-emoji">${agent.emoji}</span>
+        <div class="card-name" style="color: ${agent.color}">${agent.name}</div>
+        <div class="card-role">${agent.role}</div>
+        <div class="card-status"><span class="status-dot ${agent.status}"></span> ${agent.status}</div>
+        <div class="card-badges">
+          ${topBadges.map(s => `<span class="card-badge" style="color:${agent.color};border-color:${agent.color}40">${s}</span>`).join('')}
+        </div>
+      </div>
+    `;
+    branch.appendChild(div);
+  });
+}
+
+// ── Agent Detail Modal ───────────────────────────────────
+function openAgentModal(agentId) {
+  const a = agentData[agentId];
+  if (!a) return;
+
+  document.getElementById('amAvatar').innerHTML = a.emoji;
+  document.getElementById('amAvatar').style.borderColor = a.color;
+  document.getElementById('amName').textContent = a.name;
+  document.getElementById('amName').style.color = a.color;
+  document.getElementById('amRole').textContent = a.role;
+  document.getElementById('amStatus').innerHTML = `<span class="status-dot ${a.status}"></span> ${a.status}`;
+
+  document.getElementById('amPersonality').textContent = a.personality;
+  document.getElementById('amBackstory').textContent = a.backstory;
+  document.getElementById('amMotivation').textContent = a.motivation;
+
+  document.getElementById('amSkills').innerHTML = a.skills.map(s => `<span class="skill-badge">${s}</span>`).join('');
+  document.getElementById('amTools').innerHTML = a.tools.map(t => `<span class="tool-badge">${t}</span>`).join('');
+
+  if (a.installedSkills) {
+    document.getElementById('amInstalledSection').style.display = 'block';
+    document.getElementById('amInstalled').innerHTML = `<span class="installed-skill-badge">${a.installedSkills}</span>`;
+  } else {
+    document.getElementById('amInstalledSection').style.display = 'none';
+  }
+
+  document.getElementById('amTeam').textContent = a.teamInteractions;
+  document.getElementById('amQuirks').innerHTML = a.quirks.map(q => `<li>${q}</li>`).join('');
+
+  document.getElementById('agentModal').classList.add('visible');
+}
+
+function closeAgentModal() {
+  document.getElementById('agentModal').classList.remove('visible');
+}
+
+// Close agent modal on backdrop click
+document.getElementById('agentModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAgentModal();
+});
+
+// ── Task Management ──────────────────────────────────────
+
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  tasks.forEach((t, i) => {
+    const li = document.createElement('li');
+    li.className = 'task-item';
+    li.innerHTML = `<div class="task-status ${t.status}" onclick="cycleStatus(${i})" style="cursor:pointer" title="Click to change status"></div><span class="task-text ${t.status === 'done' ? 'done-text' : ''}">${t.text}</span><span class="task-agent">${t.agent}</span>`;
+    list.appendChild(li);
+  });
+  updateStats();
+}
+
+async function cycleStatus(i) {
+  const order = ['pending', 'active', 'done'];
+  const curr = order.indexOf(tasks[i].status);
+  const newStatus = order[(curr + 1) % 3];
+  try {
+    await fetch(API_URL + '/api/dashboard/tasks', {
+      method: 'PUT', headers: API_HEADERS,
+      body: JSON.stringify({ index: i, status: newStatus }),
+    });
+    await fetchDashboard();
+  } catch {
+    tasks[i].status = newStatus;
+    _cacheToLocal();
+    renderTasks();
+    renderActivity();
+  }
+}
+
+async function addTask() {
+  const input = document.getElementById('newTaskInput');
+  const select = document.getElementById('newTaskAgent');
+  const text = input.value.trim();
+  const agent = select.value;
+  if (!text || !agent) return;
+  try {
+    await fetch(API_URL + '/api/dashboard/tasks', {
+      method: 'POST', headers: API_HEADERS,
+      body: JSON.stringify({ text, agent, status: 'pending' }),
+    });
+    input.value = ''; select.value = '';
+    await fetchDashboard();
+  } catch {
+    tasks.unshift({ text, agent, status: 'pending' });
+    _cacheToLocal();
+    input.value = ''; select.value = '';
+    renderTasks();
+  }
+}
+
+function updateStats() {
+  document.getElementById('statAgents').textContent = agents.length + 1;
+  document.getElementById('statActive').textContent = tasks.filter(t => t.status === 'active').length;
+  document.getElementById('statCompleted').textContent = tasks.filter(t => t.status === 'done').length;
+  document.getElementById('statProjects').textContent = projects.length;
+}
+
+// ── Dashboard Projects ───────────────────────────────────
+function renderDashboardProjects() {
+  const container = document.getElementById('progressList');
+  container.innerHTML = '';
+  const sorted = [...projects].sort((a, b) => b.created - a.created).slice(0, 5);
+  sorted.forEach(p => {
+    container.innerHTML += `
+      <div class="progress-section" style="cursor:pointer" onclick="selectProject('${p.id}')">
+        <div class="progress-label"><span class="name">${p.name}</span><span class="pct">${p.progress}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width: ${p.progress}%"></div></div>
+      </div>`;
+  });
+}
+
+// ── Activity Feed ────────────────────────────────────────
+
+function renderActivity() {
+  const feed = document.getElementById('activityFeed');
+  feed.innerHTML = '';
+  activities.slice(0, 15).forEach(a => {
+    feed.innerHTML += `<li class="task-item"><span style="color:var(--text-dim);font-size:0.7rem;min-width:45px;">${a.time}</span><span class="task-text">${a.text}</span></li>`;
+  });
+}
+
+async function addActivity(text) {
+  try {
+    await fetch(API_URL + '/api/dashboard/activity', {
+      method: 'POST', headers: API_HEADERS,
+      body: JSON.stringify({ text }),
+    });
+    await fetchDashboard();
+  } catch {
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    activities.unshift({ time, text });
+    _cacheToLocal();
+    renderActivity();
+  }
+}
+
+// ── Token Usage Tracking ─────────────────────────────────
+function fetchUsageStats() {
+  fetch(API_URL + '/api/usage', { headers: API_HEADERS })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      document.getElementById('statCost').textContent = '$' + data.cost_usd.toFixed(2);
+      document.getElementById('statRequests').textContent = data.requests;
+      document.getElementById('tdModel').textContent = data.model || '\u2014';
+      document.getElementById('tdInput').textContent = data.input_tokens.toLocaleString();
+      document.getElementById('tdOutput').textContent = data.output_tokens.toLocaleString();
+      document.getElementById('tdTotal').textContent = (data.input_tokens + data.output_tokens).toLocaleString();
+      document.getElementById('tdRequests').textContent = data.requests;
+      document.getElementById('tdCost').textContent = '$' + data.cost_usd.toFixed(4);
+    })
+    .catch(() => {});
+}
+
+function toggleTokenDetail() { document.getElementById('tokenDetailPopup').classList.toggle('visible'); }
+
+// ── Init ─────────────────────────────────────────────────
+renderHierarchy();
+renderHistory();
+
+// Load from local cache immediately for fast first paint
+_loadFromLocalCache();
+if (folders.length > 0 || projects.length > 0) renderAll();
+
+// Then fetch from API (overwrites local cache)
+fetchDashboard();
+fetchUsageStats();
+
+// Auto-refresh from API every 30 seconds
+setInterval(fetchDashboard, 30000);
+setInterval(fetchUsageStats, 30000);
+
+// Open first folder after data loads
+setTimeout(() => {
+  if (folders.length > 0) {
+    const firstFolder = document.getElementById('folder-' + folders[0].id);
+    if (firstFolder) firstFolder.classList.add('open');
+  }
+}, 300);
+</script>
+
+</body>
+</html>

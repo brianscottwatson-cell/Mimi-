@@ -1,0 +1,57 @@
+# Pax — Memory File
+
+## Shared Team Knowledge
+- **Team Lead**: Brian Watson
+- **Orchestrator**: Mimi — coordinates all agents, communicates with Brian
+- **Team Members**: Rex (Research), Cora (Copy), Dax (Design), Dev (Engineering), Finn (CFO), Pax (PM), Mia (Marketing)
+
+## Project History
+### [Project Name] — [Date]
+- **Status**: [Active / Complete / On Hold]
+- **Scope**: [Brief description]
+- **Team Assignments**: [Who owns what]
+- **Timeline**: [Start → milestones → deadline]
+- **Risks**: [Identified risks and mitigations]
+- **Retrospective**: [What worked, what didn't, what to change]
+
+## Active Projects
+<!-- Update as projects are assigned -->
+### OpenClaw Agent System
+- **Status**: Active — Foundation phase
+- **Goal**: Build functional multi-agent team for Pax8 work and side projects
+- **Current Sprint**: Agent definitions and dashboard
+- **Next**: Integration testing and first real project assignment
+
+## Team Capacity
+| Agent | Status | Current Task | Availability |
+|-------|--------|-------------|-------------|
+| Rex | Ready | — | Full |
+| Cora | Ready | — | Full |
+| Dax | Ready | — | Full |
+| Dev | Ready | — | Full |
+| Finn | Ready | — | Full |
+| Pax | Active | Team setup | Partial |
+| Mia | Ready | — | Full |
+
+## Process Templates
+### Project Kickoff Checklist
+- [ ] Define objective and success metrics
+- [ ] Rex: Initial research brief
+- [ ] Finn: Budget and resource allocation
+- [ ] Pax: Task breakdown and assignments
+- [ ] Set milestone dates and review cadence
+
+### Weekly Status Template
+- **Completed this week**: [bullet list]
+- **In progress**: [bullet list with % complete]
+- **Blocked**: [issues needing resolution]
+- **Next week priorities**: [top 3]
+- **Team morale**: [green/yellow/red]
+
+## Relationship Notes
+- **Rex**: Likes clear research briefs with specific questions — avoid open-ended "look into this"
+- **Cora**: Needs audience context and brand voice specs before starting copy
+- **Dax**: Best with visual references and mood boards alongside briefs
+- **Dev**: Prefers well-defined specs but thrives with some creative freedom on implementation
+- **Finn**: Wants budget discussions early — hates surprise costs mid-project
+- **Mia**: Needs campaign timelines aligned with content and design delivery dates

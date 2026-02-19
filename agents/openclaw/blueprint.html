@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw — Agent Architecture Blueprint</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a12;
+    --surface: #12121f;
+    --surface-2: #1a1a2e;
+    --border: #2a2a40;
+    --text: #e0e0f0;
+    --text-dim: #8888aa;
+    --neon-pink: #ff2d78;
+    --neon-blue: #00d4ff;
+    --neon-purple: #a855f7;
+    --neon-green: #22c55e;
+    --neon-yellow: #eab308;
+    --neon-orange: #f97316;
+    --neon-red: #ef4444;
+    --glow-pink: 0 0 20px rgba(255,45,120,0.3);
+    --glow-blue: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ─────────────────────────────────────── */
+  header {
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,212,255,0.05) 0%, transparent 100%);
+  }
+  header h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p { color: var(--text-dim); margin-top: 0.3rem; font-size: 0.9rem; }
+
+  .nav-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.8rem;
+  }
+  .nav-links a {
+    color: var(--neon-blue);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .nav-links a:hover {
+    background: rgba(0,212,255,0.1);
+    border-color: var(--neon-blue);
+  }
+
+  /* ── Search & Controls ─────────────────────────── */
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    padding: 1rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .controls input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+  }
+  .controls input:focus { outline: none; border-color: var(--neon-blue); }
+  .controls button {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--neon-blue);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+  }
+  .controls button:hover { background: rgba(0,212,255,0.1); border-color: var(--neon-blue); }
+
+  /* ── Sections ──────────────────────────────────── */
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 1rem 3rem; }
+
+  .section {
+    margin-top: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+  }
+  .section:hover { box-shadow: var(--glow-blue); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .section-header:hover { background: rgba(0,212,255,0.05); }
+  .section-header h2 {
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .section-header .chevron {
+    transition: transform 0.3s;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+  }
+  .section.collapsed .chevron { transform: rotate(-90deg); }
+  .section.collapsed .section-body { display: none; }
+
+  .section-body { padding: 0; }
+
+  /* ── Table ─────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th {
+    text-align: left;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  td {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(42,42,64,0.5);
+  }
+  tr:hover td { background: rgba(0,212,255,0.03); }
+  td:first-child {
+    color: var(--neon-blue);
+    font-weight: 600;
+    white-space: nowrap;
+    width: 30%;
+  }
+  td .row-actions {
+    display: inline-flex;
+    gap: 0.4rem;
+    margin-left: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  tr:hover .row-actions { opacity: 1; }
+  .row-actions button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+  }
+  .row-actions button:hover { color: var(--neon-pink); background: rgba(255,45,120,0.1); }
+
+  /* ── Add Form ──────────────────────────────────── */
+  .add-form {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.8rem 1.2rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .add-form input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 0.8rem;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.8rem;
+  }
+  .add-form input:focus { outline: none; border-color: var(--neon-blue); }
+  .add-form button {
+    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    border: none;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+  }
+  .add-form button:hover { opacity: 0.85; }
+
+  /* ── Section accent colors ─────────────────────── */
+  .section[data-accent="blue"] .section-header h2 { color: var(--neon-blue); }
+  .section[data-accent="purple"] .section-header h2 { color: var(--neon-purple); }
+  .section[data-accent="green"] .section-header h2 { color: var(--neon-green); }
+  .section[data-accent="orange"] .section-header h2 { color: var(--neon-orange); }
+  .section[data-accent="yellow"] .section-header h2 { color: var(--neon-yellow); }
+  .section[data-accent="pink"] .section-header h2 { color: var(--neon-pink); }
+
+  /* ── Toast ─────────────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface-2);
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    padding: 0.7rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Responsive ────────────────────────────────── */
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.3rem; }
+    td:first-child { white-space: normal; }
+    .add-form { flex-direction: column; }
+    .controls { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Agent Architecture Blueprint</h1>
+  <p>OpenClaw Capabilities, Data, Services & Automation</p>
+  <div class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="chat.html">Chat with Mimi</a>
+  </div>
+</header>
+
+<div class="controls">
+  <input type="text" id="searchBox" placeholder="Search across all sections..." oninput="filterAll()">
+  <button onclick="exportJSON()">Export JSON</button>
+  <button onclick="toggleAllSections()">Collapse All</button>
+</div>
+
+<div class="container" id="container"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Data ──────────────────────────────────────────────────── */
+
+const STORAGE_KEY = 'openclaw-blueprint-data';
+
+const DEFAULT_SECTIONS = [
+  {
+    id: 'skills',
+    title: 'Skills + Capabilities',
+    icon: '\u26A1',
+    accent: 'blue',
+    col1: 'Skill',
+    col2: 'Description',
+    rows: [
+      ['Orchestration (Mimi)', 'Central AI coordinator — routes tasks to 8 specialized agents via tool use'],
+      ['Research (Rex)', 'Web search, Reddit, X/Twitter research with multi-source triangulation'],
+      ['Copywriting (Cora)', 'Blog posts, emails, social copy, ad scripts — brand voice calibrated'],
+      ['Design (Dax)', 'Dashboard layouts, UI mockups, data visualization, CSS theming'],
+      ['Development (Dev)', 'Full-stack code generation, API integration, debugging, deployment'],
+      ['Finance (Finn)', 'Budget analysis, revenue modeling, investor materials, financial projections'],
+      ['Project Mgmt (Pax)', 'Sprint planning, dependency tracking, milestone reporting, Gantt charts'],
+      ['Marketing (Mia)', 'Campaign strategy, funnel analysis, A/B testing, audience segmentation'],
+      ['Strategy (Vale)', 'Market analysis, competitive intel, investment thesis, go-to-market planning'],
+      ['Gmail Integration', 'Read/send/reply emails from msmimibot2@gmail.com via Gmail API'],
+      ['Calendar Mgmt', 'Create/list/delete Google Calendar events'],
+      ['Google Docs', 'Create/read/append documents via Drive API'],
+      ['Web Search', 'DuckDuckGo-powered search, news, instant answers'],
+      ['Dashboard Tools', 'Create/update projects, tasks, activity feed in real-time'],
+      ['GitHub Pages', 'Read/create/update/delete files on the live website via GitHub API'],
+      ['Voice (TTS)', 'Text-to-speech via x.ai Eve voice or ElevenLabs fallback'],
+      ['SMS Bot', 'Twilio-powered SMS interface at +18778213395'],
+      ['Telegram Bot', 'Full tool access via Telegram polling (python-telegram-bot)'],
+    ],
+  },
+  {
+    id: 'data',
+    title: 'Data Layer',
+    icon: '\uD83D\uDDC4',
+    accent: 'purple',
+    col1: 'Store',
+    col2: 'Purpose',
+    rows: [
+      ['dashboard_data.json', 'Projects, tasks, folders, activity feed — server-side persistence'],
+      ['usage_stats.json', 'Token costs, API call counts, model breakdown per day'],
+      ['Conversation History', 'Per-user chat history (in-memory, 50 message rolling window)'],
+      ['Google Token Cache', 'OAuth refresh tokens for Gmail/Calendar/Drive (env var on Railway)'],
+      ['LocalStorage Cache', 'Offline fallback for dashboard data in browser'],
+    ],
+  },
+  {
+    id: 'services',
+    title: 'External Services',
+    icon: '\uD83D\uDD17',
+    accent: 'green',
+    col1: 'Service',
+    col2: 'Integration',
+    rows: [
+      ['Anthropic API', 'Claude Sonnet 4.5 — primary model for all agent conversations'],
+      ['Google Workspace', 'Gmail, Calendar, Drive, Docs via OAuth2 service account'],
+      ['Telegram Bot API', 'Polling-based bot with photo/document/voice support'],
+      ['Twilio', 'SMS webhook for inbound/outbound text messaging'],
+      ['GitHub API', 'Contents endpoint for file CRUD on Mimi- repo (GitHub Pages)'],
+      ['x.ai TTS', 'Eve voice WebSocket streaming for voice note replies'],
+      ['ElevenLabs', 'Fallback TTS provider'],
+      ['DuckDuckGo', 'Web search, news, instant answers (no API key needed)'],
+      ['Railway', 'Flask + Telegram bot deployment (nurturing-hope instance)'],
+      ['GitHub Pages', 'Static site hosting for dashboard, chat, blueprint pages'],
+    ],
+  },
+  {
+    id: 'automation',
+    title: 'Automation Layer',
+    icon: '\u2699\uFE0F',
+    accent: 'orange',
+    col1: 'Frequency',
+    col2: 'Tasks',
+    rows: [
+      ['Every 30s', 'Dashboard auto-refresh (poll /api/dashboard from GitHub Pages)'],
+      ['On Message', 'Auto-log activity for every chat, SMS, and Telegram interaction'],
+      ['On Message', 'Token usage tracking (input/output tokens per API call)'],
+      ['On Deploy', 'Railway auto-deploy on git push to main branch'],
+      ['On Commit', 'GitHub Pages rebuild (~30s after file create/update via API)'],
+      ['On Request', 'Tool-use loop (max 5 rounds) for multi-step agent workflows'],
+    ],
+  },
+  {
+    id: 'memory',
+    title: 'Memory System',
+    icon: '\uD83E\uDDE0',
+    accent: 'yellow',
+    col1: 'Type',
+    col2: 'Details',
+    rows: [
+      ['System Prompt', 'Persistent personality, Brian\'s goals, agent roster, tool instructions'],
+      ['Chat History', 'Rolling 50-message window per user (Telegram/SMS/Web)'],
+      ['Agent Profiles', '.md + .memory + .soul files per agent in agents/openclaw/'],
+      ['Dashboard State', 'Server-side JSON — projects, tasks, activity survive restarts'],
+      ['Usage Stats', 'Cumulative token/cost tracking persisted to usage_stats.json'],
+      ['LocalStorage', 'Browser-side cache for offline dashboard + chat config'],
+    ],
+  },
+  {
+    id: 'devops',
+    title: 'DevOps & Infrastructure',
+    icon: '\uD83D\uDEE0',
+    accent: 'pink',
+    col1: 'Component',
+    col2: 'Details',
+    rows: [
+      ['Flask Server', 'Python web API — chat, dashboard, SMS, usage endpoints'],
+      ['Telegram Polling', 'python-telegram-bot v22 async — runs on main thread'],
+      ['start_railway.py', 'Launcher: Flask in background thread + Telegram on main thread'],
+      ['Railway Deploy', 'Auto-deploy from GitHub main branch, PORT=8080'],
+      ['GitHub Pages', 'Static hosting from brianscottwatson-cell/Mimi- repo'],
+      ['CORS', 'flask-cors allowing cross-origin from GitHub Pages to Railway API'],
+      ['Auth', 'X-Netrunner-Token header on all API endpoints'],
+      ['Claude Code', 'Local development environment for code changes + git push'],
+    ],
+  },
+];
+
+/* ── State ─────────────────────────────────────────────────── */
+
+let sections = loadData();
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) { /* ignore */ }
+  return JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
+}
+
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sections)); } catch (e) { /* ignore */ }
+}
+
+/* ── Render ────────────────────────────────────────────────── */
+
+function render() {
+  const container = document.getElementById('container');
+  container.innerHTML = '';
+
+  sections.forEach((sec, si) => {
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.dataset.accent = sec.accent;
+    div.dataset.sectionIndex = si;
+
+    div.innerHTML = `
+      <div class="section-header" onclick="toggleSection(${si})">
+        <h2><span>${sec.icon}</span> ${sec.title}</h2>
+        <span class="chevron">\u25BC</span>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead><tr><th>${sec.col1}</th><th>${sec.col2}</th></tr></thead>
+          <tbody id="tbody-${si}">
+            ${sec.rows.map((r, ri) => rowHTML(si, ri, r)).join('')}
+          </tbody>
+        </table>
+        <div class="add-form">
+          <input type="text" id="add-name-${si}" placeholder="Name...">
+          <input type="text" id="add-desc-${si}" placeholder="Description...">
+          <button onclick="addRow(${si})">+ Add</button>
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function rowHTML(si, ri, r) {
+  return `<tr data-si="${si}" data-ri="${ri}">
+    <td>${esc(r[0])}
+      <span class="row-actions">
+        <button onclick="editRow(${si},${ri})" title="Edit">\u270E</button>
+        <button onclick="deleteRow(${si},${ri})" title="Delete">\u2715</button>
+      </span>
+    </td>
+    <td>${esc(r[1])}</td>
+  </tr>`;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+/* ── Interactions ──────────────────────────────────────────── */
+
+function toggleSection(si) {
+  const el = document.querySelectorAll('.section')[si];
+  el.classList.toggle('collapsed');
+}
+
+function toggleAllSections() {
+  const all = document.querySelectorAll('.section');
+  const anyOpen = [...all].some(s => !s.classList.contains('collapsed'));
+  all.forEach(s => { if (anyOpen) s.classList.add('collapsed'); else s.classList.remove('collapsed'); });
+}
+
+function addRow(si) {
+  const nameEl = document.getElementById(`add-name-${si}`);
+  const descEl = document.getElementById(`add-desc-${si}`);
+  const name = nameEl.value.trim();
+  const desc = descEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  sections[si].rows.push([name, desc]);
+  saveData();
+  render();
+  toast(`Added "${name}" to ${sections[si].title}`);
+}
+
+function deleteRow(si, ri) {
+  const name = sections[si].rows[ri][0];
+  sections[si].rows.splice(ri, 1);
+  saveData();
+  render();
+  toast(`Removed "${name}"`);
+}
+
+function editRow(si, ri) {
+  const row = sections[si].rows[ri];
+  const newName = prompt('Name:', row[0]);
+  if (newName === null) return;
+  const newDesc = prompt('Description:', row[1]);
+  if (newDesc === null) return;
+  sections[si].rows[ri] = [newName, newDesc];
+  saveData();
+  render();
+  toast(`Updated "${newName}"`);
+}
+
+function filterAll() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  document.querySelectorAll('.section').forEach(sec => {
+    const rows = sec.querySelectorAll('tbody tr');
+    let anyVisible = false;
+    rows.forEach(tr => {
+      const text = tr.textContent.toLowerCase();
+      const match = !q || text.includes(q);
+      tr.style.display = match ? '' : 'none';
+      if (match) anyVisible = true;
+    });
+    sec.style.display = (!q || anyVisible) ? '' : 'none';
+    if (q && anyVisible) sec.classList.remove('collapsed');
+  });
+}
+
+function exportJSON() {
+  const json = JSON.stringify(sections, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    toast('JSON copied to clipboard');
+  }).catch(() => {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'openclaw-blueprint.json'; a.click();
+    URL.revokeObjectURL(url);
+    toast('JSON downloaded');
+  });
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+render();
+</script>
+</body>
+</html>
