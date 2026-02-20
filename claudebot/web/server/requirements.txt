@@ -1,0 +1,16 @@
+flask
+flask-cors
+anthropic
+python-dotenv
+requests
+elevenlabs
+websockets
+httpx
+python-telegram-bot>=20.7
+pydub>=0.25.1
+google-auth
+google-auth-oauthlib
+google-api-python-client
+ddgs
+twilio>=9.0
+gunicorn

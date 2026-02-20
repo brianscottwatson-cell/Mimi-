@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Grok-Enabled OpenClaw Team Dashboard</title>
+  <style>
+    body { background:#0a0a0a; color:#0f0; font-family:monospace; margin:0; padding:20px; }
+    h1 { color:#0f0; }
+    .agent { background:#111; padding:12px; margin:8px 0; border-left:4px solid #0f0; }
+    .status { color:#0f0; }
+  </style>
+</head>
+<body>
+  <h1>🚀 Grok-Enabled OpenClaw Team Dashboard</h1>
+  <p>All agents online • Synced with Grok</p>
+  
+  <div class="agent"><strong>Mimi</strong> - Orchestrator <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Rex</strong> - Researcher <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Cora</strong> - Copywriter <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Dax</strong> - Designer <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Dev</strong> - Developer <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Finn</strong> - CFO <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Pax</strong> - Project Manager <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Mia</strong> - Marketing <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Vale</strong> - Strategist <span class="status">● LIVE</span></div>
+  <div class="agent"><strong>Vidra</strong> - Video Creator (Grok Imagine) <span class="status">● LIVE</span></div>
+  
+  <button onclick="alert('Team ready - send task now')">Send Task to Team</button>
+</body>
+</html>
