@@ -1,0 +1,17 @@
+# Vex — Memory Log
+
+## Agent Created
+- Date: 2026-02-19
+- Added to OpenClaw team as video production specialist
+- Primary tool: Kling AI 3.0 (free tier: 10 videos/month @ 720p)
+- Secondary tool: Google Veo 2 via Gemini API
+- Voiceover: ElevenLabs / x.ai Eve TTS
+
+## Pending Setup
+- [ ] Kling AI API key (register at klingai.com/global/dev)
+- [ ] Google AI Studio access for Veo 2 experimentation
+- [ ] Video hosting/delivery pipeline (GitHub Pages or cloud storage)
+- [ ] Integration with Mimi's tool-use system in app.py
+
+## Projects
+(none yet)

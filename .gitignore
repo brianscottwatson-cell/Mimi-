@@ -1,8 +1,13 @@
+# Environment
+.env
+.env.local
+
 # Virtual environment
 venv/
 env/
 ENV/
 .venv
+.venv/
 
 # Python
 __pycache__/
@@ -37,9 +42,11 @@ MANIFEST
 *~
 .DS_Store
 
-# Environment variables
-.env
-.env.local
+# OS
+Thumbs.db
+
+# Logs
+*.log
 
 # Google OAuth credentials and tokens (sensitive)
 google_credentials.json
