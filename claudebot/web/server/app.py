@@ -6,6 +6,7 @@ import anthropic
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client as TwilioClient
 
 # Import shared Mimi brain — env loading happens on import
 from mimi_core import (
@@ -40,6 +41,15 @@ try:
     )
 except Exception:
     GITHUB_AVAILABLE = False
+
+# Claude Code dispatch (Mimi's self-update capability)
+try:
+    from claude_dispatch import (
+        claude_code_dispatch, claude_code_list_tasks,
+        DISPATCH_AVAILABLE,
+    )
+except Exception:
+    DISPATCH_AVAILABLE = False
 
 # Web search (free, no API key)
 from web_search import (
@@ -176,6 +186,27 @@ TWILIO_ALLOWED_NUMBERS = {n.strip() for n in _allowed_sms.split(",") if n.strip(
 # Per-phone SMS conversation history (phone -> list of messages)
 sms_history: dict[str, list[dict]] = {}
 SMS_MAX_HISTORY = 30  # Keep last 30 messages per phone number
+
+# Twilio REST client for outbound SMS
+TWILIO_AVAILABLE = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER)
+twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) if TWILIO_AVAILABLE else None
+
+
+def sms_send(phone_number: str, message: str) -> dict:
+    """Send an outbound SMS via Twilio."""
+    if not twilio_client:
+        return {"error": "Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER."}
+    try:
+        msg = twilio_client.messages.create(
+            to=phone_number,
+            from_=TWILIO_PHONE_NUMBER,
+            body=message[:1600],  # Twilio limit
+        )
+        _log_activity(f"SMS sent to ...{phone_number[-4:]}: {message[:40]}")
+        return {"status": "sent", "sid": msg.sid, "to": phone_number}
+    except Exception as e:
+        return {"error": f"SMS send failed: {e}"}
+
 
 # ---------------------------------------------------------------------------
 # Auth helper
@@ -675,15 +706,88 @@ if GITHUB_AVAILABLE:
         "github_get_pages_status": lambda **kw: github_get_pages_status(**kw),
     })
 
+# ---------------------------------------------------------------------------
+# SMS Outbound Tool for Claude
+# ---------------------------------------------------------------------------
+
+SMS_TOOLS = [
+    {
+        "name": "sms_send",
+        "description": "Send an SMS text message to a phone number via Twilio. Use this when Brian asks you to text someone, send an SMS, or when you need to proactively notify Brian about something important. Phone numbers must be in E.164 format (e.g. +13035551234).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "phone_number": {"type": "string", "description": "Recipient phone number in E.164 format (e.g. +13035551234)"},
+                "message": {"type": "string", "description": "The message text to send (max 1600 chars)"},
+            },
+            "required": ["phone_number", "message"],
+        },
+    },
+]
+
+if TWILIO_AVAILABLE:
+    TOOL_HANDLERS["sms_send"] = lambda **kw: sms_send(**kw)
+
+# ---------------------------------------------------------------------------
+# Claude Code Dispatch Tools (Mimi's self-update capability)
+# ---------------------------------------------------------------------------
+
+DISPATCH_TOOLS = [
+    {
+        "name": "claude_code_dispatch",
+        "description": "Dispatch a development task to Claude Code. Use this when Brian asks for code changes, new features, bug fixes, new agents, or any modification to the Mimi codebase. Creates a GitHub Issue that Claude Code will pick up and implement, then creates a PR. Examples: 'Add a new agent', 'Fix the SMS sending', 'Update the dashboard UI'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string", "description": "Clear description of what needs to be built, fixed, or changed"},
+                "files_to_modify": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of file paths that likely need changes",
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "Task priority (default: medium)",
+                },
+                "branch_name": {"type": "string", "description": "Optional git branch name for this work"},
+            },
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "claude_code_list_tasks",
+        "description": "List existing development tasks dispatched to Claude Code. Shows open/closed issues labeled 'claude-code'. Use to check on pending work or review completed tasks.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "enum": ["open", "closed", "all"],
+                    "description": "Filter by issue state (default: open)",
+                },
+            },
+        },
+    },
+]
+
+if DISPATCH_AVAILABLE:
+    TOOL_HANDLERS["claude_code_dispatch"] = lambda **kw: claude_code_dispatch(**kw)
+    TOOL_HANDLERS["claude_code_list_tasks"] = lambda **kw: claude_code_list_tasks(**kw)
+
 
 def _chat_with_tools(messages):
-    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub. Handles tool call loops."""
+    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub + SMS + dispatch."""
     tools = list(WEB_TOOLS)  # Web search always available
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
     tools.extend(DASHBOARD_TOOLS)
     if GITHUB_AVAILABLE:
         tools.extend(GITHUB_TOOLS)
+    if TWILIO_AVAILABLE:
+        tools.extend(SMS_TOOLS)
+    if DISPATCH_AVAILABLE:
+        tools.extend(DISPATCH_TOOLS)
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,
@@ -1012,6 +1116,25 @@ def sms_webhook():
     resp = MessagingResponse()
     resp.message(reply)
     return str(resp), 200, {"Content-Type": "application/xml"}
+
+
+# ---------------------------------------------------------------------------
+# Capabilities status
+# ---------------------------------------------------------------------------
+
+@app.route("/api/capabilities", methods=["GET"])
+def capabilities():
+    """Report all connected tools and services."""
+    return jsonify({
+        "google": GOOGLE_AVAILABLE,
+        "github": GITHUB_AVAILABLE,
+        "sms_outbound": TWILIO_AVAILABLE,
+        "sms_inbound": bool(TWILIO_ACCOUNT_SID),
+        "claude_dispatch": DISPATCH_AVAILABLE,
+        "tts_xai": bool(XAI_API_KEY),
+        "tts_elevenlabs": bool(ELEVENLABS_API_KEY),
+        "web_search": True,
+    })
 
 
 # ---------------------------------------------------------------------------
