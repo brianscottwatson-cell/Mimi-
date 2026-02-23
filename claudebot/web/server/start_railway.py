@@ -12,6 +12,7 @@ import traceback
 import threading
 
 if __name__ == "__main__":
+    print("[start_railway] v2 — 2026-02-23", flush=True)
     port = int(os.environ.get("PORT", 8000))
 
     # Import app on main thread FIRST to avoid import race conditions
@@ -27,6 +28,7 @@ if __name__ == "__main__":
         print(f"[start_railway] Telegram outbound: {'ON' if TELEGRAM_OUTBOUND_AVAILABLE else 'OFF'}", flush=True)
         print(f"[start_railway] GitHub: {'ON' if GITHUB_AVAILABLE else 'OFF'}", flush=True)
         print(f"[start_railway] Total tools: {len(TOOL_HANDLERS)}", flush=True)
+        print(f"[start_railway] Tool names: {sorted(TOOL_HANDLERS.keys())}", flush=True)
     except Exception as e:
         print(f"[start_railway] FATAL: Failed to import app: {e}", flush=True)
         traceback.print_exc()
