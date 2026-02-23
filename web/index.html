@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEURAL INTERFACE // MULTI-AGENT SYSTEM</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        /* === RESET & BASE === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Cyberpunk Neons */
+            --neon-cyan: #00f0ff;
+            --neon-magenta: #ff00aa;
+            --neon-purple: #aa00ff;
+            --neon-lime: #aaff00;
+
+            /* Dark Base */
+            --bg-dark: #0a0a0f;
+            --bg-darker: #050508;
+            --bg-panel: #121218;
+
+            /* Lumon Corporate */
+            --lumon-steel: #4a5568;
+            --lumon-teal: #5a7e8c;
+            --lumon-white: #e8eaed;
+
+            /* Fonts */
+            --font-cyber: 'Rajdhani', sans-serif;
+            --font-terminal: 'Share Tech Mono', monospace;
+            --font-display: 'Orbitron', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-cyber);
+            background: var(--bg-darker);
+            color: var(--lumon-white);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* === MATRIX RAIN BACKGROUND === */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        /* === SCANLINES OVERLAY === */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            animation: scanline-flicker 8s infinite;
+        }
+
+        @keyframes scanline-flicker {
+            0%, 100% { opacity: 0.05; }
+            50% { opacity: 0.1; }
+        }
+
+        /* === BOOT SEQUENCE === */
+        #boot-sequence {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-darker);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-terminal);
+            color: var(--neon-cyan);
+            animation: boot-fade-out 0.5s 2.5s forwards;
+        }
+
+        @keyframes boot-fade-out {
+            to { opacity: 0; pointer-events: none; }
+        }
+
+        .boot-text {
+            font-size: 14px;
+            margin: 5px 0;
+            opacity: 0;
+            animation: boot-line 0.3s forwards;
+        }
+
+        .boot-text:nth-child(1) { animation-delay: 0.2s; }
+        .boot-text:nth-child(2) { animation-delay: 0.5s; }
+        .boot-text:nth-child(3) { animation-delay: 0.8s; }
+        .boot-text:nth-child(4) { animation-delay: 1.1s; }
+        .boot-text:nth-child(5) { animation-delay: 1.4s; }
+        .boot-text:nth-child(6) { animation-delay: 1.7s; }
+
+        @keyframes boot-line {
+            to { opacity: 1; }
+        }
+
+        .boot-logo {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px var(--neon-cyan), 0 0 40px var(--neon-cyan);
+            margin-bottom: 30px;
+            letter-spacing: 8px;
+        }
+
+        /* === MAIN CONTAINER === */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* === HEADER / HUD === */
+        .header-hud {
+            background: linear-gradient(180deg, var(--bg-panel) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo::before {
+            content: '◢';
+            font-size: 24px;
+            color: var(--neon-magenta);
+            text-shadow: 0 0 10px var(--neon-magenta);
+        }
+
+        .history-button {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .history-button:hover {
+            background: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .history-button::before {
+            content: '☰';
+            font-size: 20px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-indicator {
+            display: flex;
+            gap: 20px;
+            font-family: var(--font-terminal);
+            font-size: 11px;
+            color: var(--lumon-teal);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--neon-lime);
+            box-shadow: 0 0 10px var(--neon-lime);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* === CONVERSATION HISTORY SIDEBAR === */
+        .history-sidebar {
+            position: fixed;
+            top: 0;
+            left: -350px;
+            width: 350px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(18, 18, 24, 0.98), rgba(10, 10, 15, 0.98));
+            border-right: 2px solid var(--neon-cyan);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            z-index: 1000;
+            transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-sidebar.open {
+            left: 0;
+        }
+
+        .history-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            letter-spacing: 2px;
+        }
+
+        .close-button {
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            border: 2px solid var(--neon-magenta);
+            border-radius: 6px;
+            color: var(--neon-magenta);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-button:hover {
+            background: rgba(255, 0, 170, 0.2);
+            box-shadow: 0 0 15px rgba(255, 0, 170, 0.4);
+        }
+
+        .new-chat-button {
+            margin: 15px 20px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--neon-magenta), var(--neon-purple));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: var(--font-cyber);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(255, 0, 170, 0.3);
+        }
+
+        .new-chat-button:hover {
+            box-shadow: 0 0 25px rgba(255, 0, 170, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .conversations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .conversations-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .conversations-list::-webkit-scrollbar-track {
+            background: rgba(18, 18, 24, 0.5);
+        }
+
+        .conversations-list::-webkit-scrollbar-thumb {
+            background: var(--neon-cyan);
+            border-radius: 3px;
+        }
+
+        .conversation-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: rgba(74, 85, 104, 0.15);
+            border: 1px solid rgba(90, 126, 140, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: var(--font-body);
+        }
+
+        .conversation-item:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+        }
+
+        .conversation-item.active {
+            background: rgba(0, 240, 255, 0.15);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
+
+        .conversation-title {
+            font-size: 14px;
+            color: var(--lumon-white);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .conversation-meta {
+            font-size: 11px;
+            color: var(--lumon-teal);
+            font-family: var(--font-terminal);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* === CHAT AREA === */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: radial-gradient(ellipse at top, rgba(170, 0, 255, 0.03), transparent 60%);
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: var(--bg-panel);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 5px var(--neon-cyan);
+        }
+
+        /* === AGENT AVATAR === */
+        .agent-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--neon-magenta), var(--neon-cyan));
+            border: 2px solid var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 20px;
+            color: white;
+            text-shadow: 0 0 10px var(--neon-magenta);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .agent-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .agent-avatar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: avatar-shine 3s infinite;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @keyframes avatar-shine {
+            0% { left: -100%; }
+            50%, 100% { left: 100%; }
+        }
+
+        .agent-name {
+            font-family: var(--font-terminal);
+            font-size: 12px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 5px var(--neon-cyan);
+            margin-top: 5px;
+            letter-spacing: 2px;
+        }
+
+        /* === MESSAGES === */
+        .message-wrapper {
+            margin-bottom: 25px;
+            animation: message-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes message-slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-user {
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .message-assistant {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .message-system {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        /* User Message (Cyberpunk Neon) */
+        .message-content-user {
+            max-width: 70%;
+            padding: 15px 20px;
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 12px 12px 0 12px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 20px rgba(0, 240, 255, 0.05);
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--lumon-white);
+            position: relative;
+        }
+
+        .message-content-user::before {
+            content: '▸';
+            position: absolute;
+            right: 100%;
+            top: 15px;
+            margin-right: 8px;
+            color: var(--neon-cyan);
+            font-size: 18px;
+            text-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* Assistant Message (Lumon Sterile) */
+        .message-content-assistant {
+            max-width: 75%;
+            padding: 18px 22px;
+            background: linear-gradient(135deg, rgba(74, 85, 104, 0.15), rgba(90, 126, 140, 0.1));
+            border: 1px solid rgba(90, 126, 140, 0.4);
+            border-radius: 12px 12px 12px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--lumon-white);
+            position: relative;
+        }
+
+        .agent-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, var(--neon-magenta), var(--neon-purple));
+            border-radius: 4px;
+            font-family: var(--font-terminal);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            box-shadow: 0 0 15px rgba(255, 0, 170, 0.4);
+        }
+
+        /* System Message */
+        .message-content-system {
+            padding: 12px 24px;
+            background: rgba(170, 255, 0, 0.05);
+            border: 1px dashed var(--neon-lime);
+            border-radius: 8px;
+            font-family: var(--font-terminal);
+            font-size: 13px;
+            color: var(--neon-lime);
+            text-align: center;
+            max-width: 80%;
+        }
+
+        /* === LOADING INDICATOR === */
+        .loading-indicator {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 25px;
+        }
+
+        .loading-dots {
+            padding: 15px 20px;
+            background: rgba(74, 85, 104, 0.15);
+            border: 1px solid rgba(90, 126, 140, 0.4);
+            border-radius: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .loading-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            animation: loading-bounce 1.4s infinite;
+        }
+
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes loading-bounce {
+            0%, 80%, 100% { transform: scale(1); opacity: 0.5; }
+            40% { transform: scale(1.3); opacity: 1; }
+        }
+
+        /* === INPUT AREA === */
+        .input-area {
+            padding: 20px 30px;
+            background: linear-gradient(0deg, var(--bg-panel) 0%, transparent 100%);
+            border-top: 1px solid rgba(0, 240, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            position: relative;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 15px 25px;
+            background: rgba(18, 18, 24, 0.8);
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+            color: var(--lumon-white);
+            font-family: var(--font-body);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-field::placeholder {
+            color: var(--lumon-teal);
+            font-family: var(--font-terminal);
+        }
+
+        .input-field:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3), inset 0 0 20px rgba(0, 240, 255, 0.05);
+        }
+
+        .send-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, var(--neon-magenta), var(--neon-purple));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: var(--font-cyber);
+            font-size: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 0, 170, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .send-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .send-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .send-button:hover {
+            box-shadow: 0 0 40px rgba(255, 0, 170, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .send-button-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* === GLITCH EFFECT === */
+        @keyframes glitch {
+            0% {
+                text-shadow: 0.05em 0 0 var(--neon-cyan), -0.05em -0.025em 0 var(--neon-magenta);
+            }
+            14% {
+                text-shadow: 0.05em 0 0 var(--neon-cyan), -0.05em -0.025em 0 var(--neon-magenta);
+            }
+            15% {
+                text-shadow: -0.05em -0.025em 0 var(--neon-cyan), 0.05em 0.025em 0 var(--neon-magenta);
+            }
+            49% {
+                text-shadow: -0.05em -0.025em 0 var(--neon-cyan), 0.05em 0.025em 0 var(--neon-magenta);
+            }
+            50% {
+                text-shadow: 0.025em 0.05em 0 var(--neon-cyan), 0.05em 0 0 var(--neon-magenta);
+            }
+            99% {
+                text-shadow: 0.025em 0.05em 0 var(--neon-cyan), 0.05em 0 0 var(--neon-magenta);
+            }
+            100% {
+                text-shadow: -0.025em 0 0 var(--neon-cyan), -0.025em -0.025em 0 var(--neon-magenta);
+            }
+        }
+
+        .glitch {
+            animation: glitch 0.5s infinite;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 768px) {
+            .header-hud {
+                padding: 12px 20px;
+            }
+
+            .logo {
+                font-size: 16px;
+            }
+
+            .status-indicator {
+                font-size: 9px;
+                gap: 10px;
+            }
+
+            .chat-container {
+                padding: 20px 15px;
+            }
+
+            .message-content-user,
+            .message-content-assistant {
+                max-width: 85%;
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+
+            .input-area {
+                padding: 15px 15px;
+            }
+
+            .input-field {
+                padding: 12px 18px;
+                font-size: 14px;
+            }
+
+            .send-button {
+                padding: 12px 20px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix Rain Background -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <!-- Scanlines Overlay -->
+    <div class="scanlines"></div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Conversation History Sidebar -->
+    <div class="history-sidebar" id="history-sidebar">
+        <div class="history-header">
+            <div class="history-title">⟨ HISTORY ⟩</div>
+            <button class="close-button" id="close-sidebar">✕</button>
+        </div>
+        <button class="new-chat-button" id="new-chat-button">
+            + NEW TRANSMISSION
+        </button>
+        <div class="conversations-list" id="conversations-list">
+            <!-- Conversations will be dynamically added here -->
+        </div>
+    </div>
+
+    <!-- Boot Sequence -->
+    <div id="boot-sequence">
+        <div class="boot-logo">◢ NEURAL LINK</div>
+        <div class="boot-text">▸ INITIALIZING NEURAL INTERFACE...</div>
+        <div class="boot-text">▸ LOADING AGENT PROTOCOLS...</div>
+        <div class="boot-text">▸ MIMI PRIMARY ORCHESTRATOR: ONLINE</div>
+        <div class="boot-text">▸ SUB-AGENTS ONLINE: [6/6]</div>
+        <div class="boot-text">▸ ESTABLISHING SECURE CONNECTION...</div>
+        <div class="boot-text" style="color: var(--neon-lime);">▸ NEURAL LINK ESTABLISHED</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Header HUD -->
+        <div class="header-hud">
+            <div class="logo">
+                <div class="history-button" id="history-button"></div>
+                NEURAL INTERFACE
+            </div>
+            <div class="status-indicator">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>MIMI ONLINE</span>
+                </div>
+                <div class="status-item">
+                    <span>AGENTS: 6</span>
+                </div>
+                <div class="status-item">
+                    <span>MODEL: SONNET-4.5</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="chat-container" id="chat-container">
+            <div class="message-wrapper message-system">
+                <div class="message-content-system">
+                    ⟨ NEURAL LINK ESTABLISHED ⟩ Mimi online. Primary orchestrator initialized with 6 specialized sub-agents: Research • Marketing • SEO • Digital Marketing • Project Management • Web Development
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <input
+                    type="text"
+                    class="input-field"
+                    id="message-input"
+                    placeholder=">> ENTER TRANSMISSION"
+                    autocomplete="off"
+                />
+                <button class="send-button" id="send-button">
+                    <span class="send-button-text">TRANSMIT</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === MATRIX RAIN EFFECT ===
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン01';
+        const charArray = chars.split('');
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(5, 5, 8, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#00f0ff';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // === CHAT FUNCTIONALITY ===
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+
+        function addMessage(content, type, agentUsed = null) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper message-${type}`;
+
+            // Add avatar for assistant messages
+            if (type === 'assistant') {
+                const avatarContainer = document.createElement('div');
+                avatarContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center;';
+
+                const avatar = document.createElement('div');
+                avatar.className = 'agent-avatar';
+
+                // Use image for Mimi (primary agent), letter for specialists
+                if (agentUsed === 'primary') {
+                    const img = document.createElement('img');
+                    img.src = '/assets/mimi.png';
+                    img.alt = 'Mimi';
+                    img.onerror = function() {
+                        // Fallback to 'M' if image doesn't load
+                        this.style.display = 'none';
+                        avatar.textContent = 'M';
+                    };
+                    avatar.appendChild(img);
+                } else {
+                    // Specialist agents use their initial
+                    const avatarInitial = agentUsed ? agentUsed.charAt(0).toUpperCase() : 'A';
+                    avatar.textContent = avatarInitial;
+                }
+
+                const name = document.createElement('div');
+                name.className = 'agent-name';
+                name.textContent = agentUsed === 'primary' ? 'MIMI' : agentUsed.toUpperCase();
+
+                avatarContainer.appendChild(avatar);
+                avatarContainer.appendChild(name);
+                wrapper.appendChild(avatarContainer);
+            }
+
+            const messageContent = document.createElement('div');
+            messageContent.className = `message-content-${type}`;
+
+            if (agentUsed && type === 'assistant' && agentUsed !== 'primary') {
+                const badge = document.createElement('div');
+                badge.className = 'agent-badge';
+                badge.textContent = `⟨ ${agentUsed.toUpperCase()} SPECIALIST ⟩`;
+                messageContent.appendChild(badge);
+                messageContent.appendChild(document.createElement('br'));
+            }
+
+            // Parse and render content (basic markdown-like support)
+            const lines = content.split('\n');
+            lines.forEach((line, index) => {
+                if (index > 0) messageContent.appendChild(document.createElement('br'));
+                const textNode = document.createTextNode(line);
+                messageContent.appendChild(textNode);
+            });
+
+            wrapper.appendChild(messageContent);
+            chatContainer.appendChild(wrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showLoading() {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'loading-indicator';
+            wrapper.id = 'loading-indicator';
+
+            const dotsContainer = document.createElement('div');
+            dotsContainer.className = 'loading-dots';
+
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'loading-dot';
+                dotsContainer.appendChild(dot);
+            }
+
+            wrapper.appendChild(dotsContainer);
+            chatContainer.appendChild(wrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideLoading() {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Disable input
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Add user message
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // Show loading
+            showLoading();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+
+                // Hide loading
+                hideLoading();
+
+                if (response.ok) {
+                    addMessage(data.response, 'assistant', data.agent_used);
+                } else {
+                    addMessage(`⚠ ERROR: ${data.detail || 'Unknown error'}`, 'system');
+                }
+            } catch (error) {
+                hideLoading();
+                addMessage(`⚠ CONNECTION ERROR: ${error.message}`, 'system');
+            } finally {
+                // Re-enable input
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Focus input after boot
+        setTimeout(() => {
+            messageInput.focus();
+        }, 3000);
+
+        // Add glitch effect to logo occasionally
+        setInterval(() => {
+            if (Math.random() > 0.95) {
+                const logo = document.querySelector('.logo');
+                logo.classList.add('glitch');
+                setTimeout(() => logo.classList.remove('glitch'), 500);
+            }
+        }, 3000);
+
+        // === CONVERSATION HISTORY MANAGEMENT ===
+        const historyButton = document.getElementById('history-button');
+        const historySidebar = document.getElementById('history-sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const closeSidebar = document.getElementById('close-sidebar');
+        const newChatButton = document.getElementById('new-chat-button');
+        const conversationsList = document.getElementById('conversations-list');
+
+        let currentConversationId = null;
+        let conversations = {};
+
+        // Load conversations from localStorage
+        function loadConversations() {
+            const saved = localStorage.getItem('neuralLinkConversations');
+            if (saved) {
+                conversations = JSON.parse(saved);
+            }
+
+            // Create default conversation if none exist
+            if (Object.keys(conversations).length === 0) {
+                currentConversationId = Date.now().toString();
+                conversations[currentConversationId] = {
+                    id: currentConversationId,
+                    title: 'New Transmission',
+                    messages: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                saveConversations();
+            } else {
+                // Set current to most recent
+                const sorted = Object.values(conversations).sort((a, b) =>
+                    new Date(b.updatedAt) - new Date(a.updatedAt)
+                );
+                currentConversationId = sorted[0].id;
+            }
+        }
+
+        // Save conversations to localStorage
+        function saveConversations() {
+            localStorage.setItem('neuralLinkConversations', JSON.stringify(conversations));
+        }
+
+        // Render conversations list
+        function renderConversations() {
+            conversationsList.innerHTML = '';
+
+            const sorted = Object.values(conversations).sort((a, b) =>
+                new Date(b.updatedAt) - new Date(a.updatedAt)
+            );
+
+            sorted.forEach(conv => {
+                const item = document.createElement('div');
+                item.className = 'conversation-item';
+                if (conv.id === currentConversationId) {
+                    item.classList.add('active');
+                }
+
+                const title = document.createElement('div');
+                title.className = 'conversation-title';
+                title.textContent = conv.title;
+
+                const meta = document.createElement('div');
+                meta.className = 'conversation-meta';
+                const date = new Date(conv.updatedAt);
+                meta.textContent = `${conv.messages.length} msgs • ${formatDate(date)}`;
+
+                item.appendChild(title);
+                item.appendChild(meta);
+
+                item.addEventListener('click', () => {
+                    switchConversation(conv.id);
+                });
+
+                conversationsList.appendChild(item);
+            });
+        }
+
+        // Format date for display
+        function formatDate(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            if (days < 7) return `${days}d ago`;
+            return date.toLocaleDateString();
+        }
+
+        // Switch to a different conversation
+        function switchConversation(id) {
+            if (id === currentConversationId) return;
+
+            currentConversationId = id;
+
+            // Clear current chat
+            chatContainer.innerHTML = '<div class="message-wrapper message-system"><div class="message-content-system">⟨ NEURAL LINK ESTABLISHED ⟩ Mimi online. Primary orchestrator initialized with 6 specialized sub-agents: Research • Marketing • SEO • Digital Marketing • Project Management • Web Development</div></div>';
+
+            // Load messages from conversation
+            const conv = conversations[id];
+            if (conv && conv.messages) {
+                conv.messages.forEach(msg => {
+                    addMessage(msg.content, msg.type, msg.agentUsed);
+                });
+            }
+
+            renderConversations();
+            toggleSidebar();
+        }
+
+        // Create new conversation
+        function createNewConversation() {
+            const id = Date.now().toString();
+            conversations[id] = {
+                id: id,
+                title: 'New Transmission',
+                messages: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            saveConversations();
+            switchConversation(id);
+        }
+
+        // Save message to current conversation
+        function saveMessage(content, type, agentUsed = null) {
+            if (!currentConversationId) return;
+
+            const conv = conversations[currentConversationId];
+            conv.messages.push({
+                content,
+                type,
+                agentUsed,
+                timestamp: new Date().toISOString()
+            });
+
+            // Update title based on first user message
+            if (type === 'user' && conv.messages.filter(m => m.type === 'user').length === 1) {
+                conv.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+            }
+
+            conv.updatedAt = new Date().toISOString();
+            saveConversations();
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            historySidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('active');
+            if (historySidebar.classList.contains('open')) {
+                renderConversations();
+            }
+        }
+
+        // Event listeners for sidebar
+        historyButton.addEventListener('click', toggleSidebar);
+        closeSidebar.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', toggleSidebar);
+        newChatButton.addEventListener('click', createNewConversation);
+
+        // Wrap the original sendMessage to save messages
+        const originalAddMessage = addMessage;
+        addMessage = function(content, type, agentUsed = null) {
+            originalAddMessage(content, type, agentUsed);
+            saveMessage(content, type, agentUsed);
+        };
+
+        // Initialize conversations
+        loadConversations();
+        renderConversations();
+    </script>
+</body>
+</html>

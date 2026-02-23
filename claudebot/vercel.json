@@ -1,0 +1,16 @@
+{
+  "name": "claudebot",
+  "buildCommand": "npm install && npm run build",
+  "startCommand": "node dist/server.js",
+  "env": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Anthropic API key from console.anthropic.com"
+    },
+    "DATABASE_URL": {
+      "description": "PostgreSQL connection string"
+    },
+    "ELEVENLABS_API_KEY": {
+      "description": "Optional: ElevenLabs API key for voice features"
+    }
+  }
+}

@@ -106,15 +106,21 @@ def _split_message(text: str, limit: int = TELEGRAM_MSG_LIMIT) -> list[str]:
 from app import (
     WEB_TOOLS, GOOGLE_TOOLS, GOOGLE_AVAILABLE,
     DASHBOARD_TOOLS, GITHUB_TOOLS, GITHUB_AVAILABLE,
+    SMS_TOOLS, TWILIO_AVAILABLE,
+    TELEGRAM_TOOLS, TELEGRAM_OUTBOUND_AVAILABLE,
     TOOL_HANDLERS,
 )
 
 async def _achat_with_tools(messages: list[dict]) -> str:
-    """Async chat with full tool access (web search, Google, dashboard, GitHub)."""
+    """Async chat with full tool access (web search, Google, dashboard, GitHub, SMS, Telegram)."""
     tools = list(WEB_TOOLS)
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
     tools.extend(DASHBOARD_TOOLS)
+    if TWILIO_AVAILABLE:
+        tools.extend(SMS_TOOLS)
+    if TELEGRAM_OUTBOUND_AVAILABLE:
+        tools.extend(TELEGRAM_TOOLS)
     if GITHUB_AVAILABLE:
         tools.extend(GITHUB_TOOLS)
 

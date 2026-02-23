@@ -1,0 +1,19 @@
+import ts from "typescript";
+
+export default {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.ESNext,
+    lib: ["ES2020"],
+    outDir: "./dist",
+    rootDir: "./",
+    strict: true,
+    esModuleInterop: true,
+    skipLibCheck: true,
+    forceConsistentCasingInFileNames: true,
+    resolveJsonModule: true,
+    moduleResolution: "node",
+  },
+  include: ["server/**/*.ts", "shared/**/*.ts", "cli/**/*.ts"],
+  exclude: ["node_modules", "dist"],
+};
