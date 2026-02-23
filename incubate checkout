@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pax8 Storefront - Microsoft 365</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui; }
+    .step { display: none; }
+    .step.active { display: block; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white">
+  <div class="flex h-screen">
+    <!-- Sidebar -->
+    <div class="w-64 bg-black border-r border-zinc-800 p-4 flex flex-col">
+      <div class="flex items-center gap-2 mb-8">
+        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold">pax8</div>
+        <span class="font-semibold text-xl">Pax8</span>
+      </div>
+      <nav class="flex-1 space-y-1">
+        <a href="#" class="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-xl text-sm font-medium">Catalog</a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-900 rounded-xl text-sm">Sell</a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-900 rounded-xl text-sm">Orders</a>
+      </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-auto">
+      <!-- Catalog Page -->
+      <div id="catalog" class="p-8">
+        <div class="flex justify-between items-center mb-8">
+          <h1 class="text-3xl font-semibold">Catalog</h1>
+          <input type="text" id="search" placeholder="Search Microsoft licenses..." class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 w-96">
+        </div>
+        <div class="grid grid-cols-4 gap-6">
+          <!-- Tile 1 - Clickable -->
+          <div onclick="showDetail()" class="bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden cursor-pointer hover:border-blue-500 transition">
+            <div class="h-48 bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" class="h-16">
+            </div>
+            <div class="p-6">
+              <div class="text-blue-400 text-sm font-medium">Microsoft</div>
+              <div class="font-semibold text-xl mt-1">Microsoft 365 E5</div>
+              <div class="flex justify-between mt-6">
+                <div><span class="text-xs text-zinc-400">Partner</span><br><span class="font-mono text-2xl">$601.92</span></div>
+                <div><span class="text-xs text-zinc-400">Retail</span><br><span class="font-mono text-2xl line-through text-zinc-500">$684</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- Repeat 3 more tiles for demo -->
+          <div class="bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden cursor-not-allowed opacity-50">
+            <div class="h-48 bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" class="h-16">
+            </div>
+            <div class="p-6">
+              <div class="text-blue-400 text-sm font-medium">Microsoft</div>
+              <div class="font-semibold text-xl mt-1">Intune Advanced</div>
+              <div class="flex justify-between mt-6">
+                <div><span class="text-xs text-zinc-400">Partner</span><br><span class="font-mono text-2xl">$89.54</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- Add two more similar tiles if needed -->
+        </div>
+      </div>
+
+      <!-- Product Detail Page -->
+      <div id="detail" class="p-8 hidden">
+        <button onclick="showCatalog()" class="mb-6 text-blue-400 hover:text-blue-300">← Back to Catalog</button>
+        <div class="max-w-5xl mx-auto bg-zinc-900 rounded-3xl overflow-hidden">
+          <div class="p-8 flex gap-12">
+            <!-- Left: Image/Video -->
+            <div class="flex-1">
+              <div class="bg-zinc-800 rounded-2xl aspect-video flex items-center justify-center text-4xl">▶️ Video Placeholder</div>
+              <div class="mt-6 text-sm text-zinc-400">1.2B devices scanned • 750M Azure users • Watch on YouTube</div>
+            </div>
+            <!-- Right: Pricing -->
+            <div class="w-96">
+              <h2 class="text-3xl font-semibold">Microsoft 365 E5</h2>
+              <div class="mt-6">
+                <div class="text-xs text-zinc-400">PARTNER PRICE</div>
+                <div class="text-5xl font-mono">$601.92</div>
+                <div class="text-xs text-emerald-400">per user/month • New Commerce</div>
+              </div>
+              <button onclick="startCheckout()" class="mt-10 w-full bg-white text-black py-4 rounded-2xl font-semibold text-lg hover:bg-zinc-100">Continue to Order</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Checkout Flow -->
+      <div id="checkout" class="hidden p-8 max-w-2xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+          <h1 class="text-3xl font-semibold">New Opportunity</h1>
+          <div class="flex gap-2">
+            <div onclick="prevStep()" class="px-6 py-2 border border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-900">Previous</div>
+            <div onclick="nextStep()" id="nextBtn" class="px-6 py-2 bg-blue-600 rounded-2xl cursor-pointer hover:bg-blue-500">Next</div>
+          </div>
+        </div>
+
+        <!-- Step 1: Partner Info -->
+        <div id="step1" class="step active">
+          <div class="bg-zinc-900 rounded-3xl p-8">
+            <h3 class="font-semibold mb-6">Partner Information</h3>
+            <div class="grid grid-cols-2 gap-6">
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">Full Name</label>
+                <input value="Brian Watson" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              </div>
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">Email</label>
+                <input value="bwatson@pax8.com" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              </div>
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">Phone</label>
+                <input value="970-201-1236" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Customer Info -->
+        <div id="step2" class="step">
+          <div class="bg-zinc-900 rounded-3xl p-8">
+            <h3 class="font-semibold mb-6">Customer Information</h3>
+            <div class="space-y-6">
+              <input placeholder="Customer Business Name" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              <div class="grid grid-cols-2 gap-6">
+                <input placeholder="Contact First Name" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+                <input placeholder="Contact Last Name" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              </div>
+              <div class="grid grid-cols-2 gap-6">
+                <input placeholder="Contact Email" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+                <input placeholder="Contact Phone" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              </div>
+              <input placeholder="Service Address" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Licenses & Terms (adapted for Microsoft) -->
+        <div id="step3" class="step">
+          <div class="bg-zinc-900 rounded-3xl p-8">
+            <h3 class="font-semibold mb-6">Microsoft Licenses Needed</h3>
+            <div class="space-y-4">
+              <div class="flex items-center gap-4">
+                <input type="checkbox" checked class="w-5 h-5">
+                <span>Microsoft 365 E5 – 100 users</span>
+              </div>
+              <input placeholder="Quantity" value="100" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <label class="text-xs text-zinc-400">Contract Term</label>
+                  <select class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 mt-1">
+                    <option>1 Year</option>
+                    <option>3 Years</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-zinc-400">Desired Start Date</label>
+                  <input type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Notes & Submit -->
+        <div id="step4" class="step">
+          <div class="bg-zinc-900 rounded-3xl p-8">
+            <h3 class="font-semibold mb-6">Additional Notes</h3>
+            <textarea class="w-full h-48 bg-zinc-800 border border-zinc-700 rounded-3xl p-6" placeholder="Any special instructions..."></textarea>
+            <button onclick="submitOrder()" class="mt-8 w-full bg-emerald-500 py-4 rounded-2xl font-semibold text-lg">Submit Opportunity to CableFinder</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div id="success" class="hidden p-8 text-center">
+        <div class="mx-auto w-24 h-24 bg-emerald-500 rounded-2xl flex items-center justify-center text-5xl mb-6">✓</div>
+        <h2 class="text-4xl font-semibold">Opportunity Submitted</h2>
+        <p class="text-zinc-400 mt-3">Pushed to CableFinder / RPM Telco</p>
+        <button onclick="resetDemo()" class="mt-10 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">New Order</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    function showDetail() {
+      document.getElementById('catalog').classList.add('hidden');
+      document.getElementById('detail').classList.remove('hidden');
+    }
+    function showCatalog() {
+      document.getElementById('detail').classList.add('hidden');
+      document.getElementById('catalog').classList.remove('hidden');
+    }
+    function startCheckout() {
+      document.getElementById('detail').classList.add('hidden');
+      document.getElementById('checkout').classList.remove('hidden');
+      document.getElementById('step1').classList.add('active');
+    }
+    function nextStep() {
+      if (currentStep < 4) {
+        document.getElementById('step' + currentStep).classList.remove('active');
+        currentStep++;
+        document.getElementById('step' + currentStep).classList.add('active');
+      }
+    }
+    function prevStep() {
+      if (currentStep > 1) {
+        document.getElementById('step' + currentStep).classList.remove('active');
+        currentStep--;
+        document.getElementById('step' + currentStep).classList.add('active');
+      }
+    }
+    function submitOrder() {
+      document.getElementById('checkout').classList.add('hidden');
+      document.getElementById('success').classList.remove('hidden');
+    }
+    function resetDemo() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
