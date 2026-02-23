@@ -9,7 +9,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 # Import shared Mimi brain — env loading happens on import
 from mimi_core import (
-    SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
+    SYSTEM_PROMPT as _BASE_SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
     sync_client as client,
     chat_with_mimi,
     process_image_bytes, process_document_bytes,
@@ -40,6 +40,40 @@ try:
     )
 except Exception:
     GITHUB_AVAILABLE = False
+
+# Custom tools (Mimi-created, auto-loaded from custom_tools/)
+try:
+    from custom_tools import load_custom_tools
+    CUSTOM_TOOLS, CUSTOM_HANDLERS = load_custom_tools()
+    print(f"[app] Custom tools loaded: {len(CUSTOM_TOOLS)}", flush=True)
+except Exception as e:
+    print(f"[app] Custom tools loader error (non-fatal): {e}", flush=True)
+    CUSTOM_TOOLS, CUSTOM_HANDLERS = [], {}
+
+# Custom agents (Mimi-created, auto-loaded from custom_agents/)
+try:
+    from custom_agents import load_custom_agents
+    CUSTOM_AGENTS = load_custom_agents()
+    print(f"[app] Custom agents loaded: {len(CUSTOM_AGENTS)}", flush=True)
+except Exception as e:
+    print(f"[app] Custom agents loader error (non-fatal): {e}", flush=True)
+    CUSTOM_AGENTS = []
+
+# Build runtime system prompt (inject custom agents if any)
+def _build_system_prompt():
+    prompt = _BASE_SYSTEM_PROMPT
+    if CUSTOM_AGENTS:
+        section = "\n\n== CUSTOM AGENTS (self-created) ==\n"
+        for a in CUSTOM_AGENTS:
+            section += f"\n{a['description']}\n"
+        marker = "== INTERACTION RULES =="
+        if marker in prompt:
+            prompt = prompt.replace(marker, section + "\n" + marker)
+        else:
+            prompt += section
+    return prompt
+
+SYSTEM_PROMPT = _build_system_prompt()
 
 # Web search (free, no API key)
 from web_search import (
@@ -789,6 +823,10 @@ if GITHUB_AVAILABLE:
         "github_get_pages_status": lambda **kw: github_get_pages_status(**kw),
     })
 
+# Custom tools (Mimi-created)
+if CUSTOM_HANDLERS:
+    TOOL_HANDLERS.update(CUSTOM_HANDLERS)
+
 
 def _chat_with_tools(messages):
     """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub. Handles tool call loops."""
@@ -802,6 +840,8 @@ def _chat_with_tools(messages):
         tools.extend(TELEGRAM_TOOLS)
     if GITHUB_AVAILABLE:
         tools.extend(GITHUB_TOOLS)
+    if CUSTOM_TOOLS:
+        tools.extend(CUSTOM_TOOLS)
     response = client.messages.create(
         model=MODEL,
         max_tokens=2048,

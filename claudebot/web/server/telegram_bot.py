@@ -23,7 +23,7 @@ import json as _json
 import anthropic
 
 from mimi_core import (
-    SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
+    MODEL, IMAGE_TYPES,
     async_client,
     achat_with_mimi,
     process_image_bytes, process_document_bytes,
@@ -108,7 +108,8 @@ from app import (
     DASHBOARD_TOOLS, GITHUB_TOOLS, GITHUB_AVAILABLE,
     SMS_TOOLS, TWILIO_AVAILABLE,
     TELEGRAM_TOOLS, TELEGRAM_OUTBOUND_AVAILABLE,
-    TOOL_HANDLERS,
+    CUSTOM_TOOLS, TOOL_HANDLERS,
+    SYSTEM_PROMPT,
 )
 
 async def _achat_with_tools(messages: list[dict]) -> str:
@@ -123,6 +124,8 @@ async def _achat_with_tools(messages: list[dict]) -> str:
         tools.extend(TELEGRAM_TOOLS)
     if GITHUB_AVAILABLE:
         tools.extend(GITHUB_TOOLS)
+    if CUSTOM_TOOLS:
+        tools.extend(CUSTOM_TOOLS)
 
     response = await async_client.messages.create(
         model=MODEL,

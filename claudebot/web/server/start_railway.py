@@ -20,13 +20,15 @@ if __name__ == "__main__":
     try:
         from app import (
             app, GOOGLE_AVAILABLE, TWILIO_AVAILABLE, TELEGRAM_OUTBOUND_AVAILABLE,
-            GITHUB_AVAILABLE, TOOL_HANDLERS,
+            GITHUB_AVAILABLE, TOOL_HANDLERS, CUSTOM_TOOLS, CUSTOM_AGENTS,
         )
         print(f"[start_railway] App imported OK", flush=True)
         print(f"[start_railway] Google: {'ON' if GOOGLE_AVAILABLE else 'OFF'}", flush=True)
         print(f"[start_railway] Twilio SMS: {'ON' if TWILIO_AVAILABLE else 'OFF'}", flush=True)
         print(f"[start_railway] Telegram outbound: {'ON' if TELEGRAM_OUTBOUND_AVAILABLE else 'OFF'}", flush=True)
         print(f"[start_railway] GitHub: {'ON' if GITHUB_AVAILABLE else 'OFF'}", flush=True)
+        print(f"[start_railway] Custom tools: {len(CUSTOM_TOOLS)}", flush=True)
+        print(f"[start_railway] Custom agents: {len(CUSTOM_AGENTS)}", flush=True)
         print(f"[start_railway] Total tools: {len(TOOL_HANDLERS)}", flush=True)
         print(f"[start_railway] Tool names: {sorted(TOOL_HANDLERS.keys())}", flush=True)
     except Exception as e:

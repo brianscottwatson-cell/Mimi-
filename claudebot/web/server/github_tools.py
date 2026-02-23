@@ -25,6 +25,7 @@ GITHUB_AVAILABLE = bool(GITHUB_TOKEN)
 # ---------------------------------------------------------------------------
 
 BLOCKED_PATHS = {
+    # Core server files
     "claudebot/web/server/app.py",
     "claudebot/web/server/mimi_core.py",
     "claudebot/web/server/google_services.py",
@@ -34,6 +35,10 @@ BLOCKED_PATHS = {
     "claudebot/web/server/start_railway.py",
     "claudebot/web/server/github_tools.py",
     "claudebot/web/server/requirements.txt",
+    # Loader infrastructure (protected)
+    "claudebot/web/server/custom_tools/__init__.py",
+    "claudebot/web/server/custom_agents/__init__.py",
+    # Config / secrets
     "railway.json",
     ".env",
     ".gitignore",
@@ -42,7 +47,14 @@ BLOCKED_PATHS = {
 ALLOWED_EXTENSIONS = {
     ".html", ".css", ".js", ".json", ".md", ".txt",
     ".svg", ".xml", ".yaml", ".yml", ".csv",
+    ".py",
 }
+
+# Python files are only allowed in these directories
+SAFE_PY_PREFIXES = (
+    "claudebot/web/server/custom_tools/",
+    "claudebot/web/server/custom_agents/",
+)
 
 
 def _headers():
@@ -63,6 +75,9 @@ def _validate_path(path):
     ext = os.path.splitext(path)[1].lower()
     if ext and ext not in ALLOWED_EXTENSIONS:
         return False, f"File extension '{ext}' not allowed. Allowed: {sorted(ALLOWED_EXTENSIONS)}"
+    # Python files restricted to safe zones only
+    if ext == ".py" and not path.startswith(SAFE_PY_PREFIXES):
+        return False, "Python files can only be created in custom_tools/ or custom_agents/ directories."
     return True, ""
 
 
