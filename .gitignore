@@ -48,6 +48,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Agent Factory data (runtime state — not committed)
+data/agent_registry.json
+data/analytics.json
+data/plugins.json
+
 # Google OAuth credentials and tokens (sensitive)
 google_credentials.json
 google_token.json

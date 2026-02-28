@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Chat</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:{{THEME === 'dark' ? '#0f0f1a' : '#f5f5f5'}};
+    height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  }
+  body.dark{background:#0f0f1a;color:#e2e8f0}
+  body.light{background:#f8fafc;color:#1e293b}
+
+  .header{
+    padding:12px 16px;display:flex;align-items:center;gap:10px;
+    border-bottom:1px solid rgba(124,58,237,.3);
+    background:rgba(124,58,237,.15);
+  }
+  .agent-avatar{
+    width:32px;height:32px;border-radius:50%;
+    background:linear-gradient(135deg,#7c3aed,#06b6d4);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;flex-shrink:0;
+  }
+  .agent-name{font-weight:600;font-size:14px}
+  .status-dot{
+    width:8px;height:8px;border-radius:50%;background:#22c55e;
+    margin-left:auto;box-shadow:0 0 6px #22c55e;
+  }
+
+  .messages{
+    flex:1;overflow-y:auto;padding:12px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .messages::-webkit-scrollbar{width:4px}
+  .messages::-webkit-scrollbar-thumb{background:rgba(124,58,237,.4);border-radius:4px}
+
+  .msg{display:flex;gap:8px;max-width:90%}
+  .msg.user{flex-direction:row-reverse;margin-left:auto}
+  .bubble{
+    padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.5;
+    word-break:break-word;max-width:280px;
+  }
+  .msg.user .bubble{
+    background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;
+    border-bottom-right-radius:4px;
+  }
+  .msg.agent .bubble{
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);
+    border-bottom-left-radius:4px;
+  }
+  .msg.system .bubble{
+    background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);
+    color:#67e8f9;font-size:11px;margin:0 auto;
+  }
+
+  .typing{display:flex;gap:4px;align-items:center;padding:8px 12px}
+  .dot{width:6px;height:6px;border-radius:50%;background:#7c3aed;
+    animation:bounce .8s infinite}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+  .input-area{
+    padding:10px;border-top:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.03);
+  }
+  .input-row{display:flex;gap:8px}
+  textarea{
+    flex:1;padding:8px 12px;border-radius:20px;border:1px solid rgba(124,58,237,.4);
+    background:rgba(255,255,255,.06);color:inherit;font-size:13px;
+    resize:none;height:38px;line-height:1.4;font-family:inherit;
+    outline:none;transition:border .2s;
+  }
+  textarea:focus{border-color:#7c3aed}
+  button.send{
+    width:38px;height:38px;border-radius:50%;background:#7c3aed;
+    border:none;cursor:pointer;color:#fff;font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .15s,background .2s;flex-shrink:0;
+  }
+  button.send:hover{background:#5b21b6;transform:scale(1.05)}
+  button.send:disabled{opacity:.5;cursor:not-allowed}
+</style>
+</head>
+<body class="dark" id="body">
+<div class="header">
+  <div class="agent-avatar">🤖</div>
+  <div>
+    <div class="agent-name" id="agentName">AI Agent</div>
+    <div style="font-size:11px;opacity:.6">Agent Factory</div>
+  </div>
+  <div class="status-dot"></div>
+</div>
+
+<div class="messages" id="messages">
+  <div class="msg system"><div class="bubble">👋 Connected to your agent. Start chatting!</div></div>
+</div>
+
+<div class="input-area">
+  <div class="input-row">
+    <textarea id="input" placeholder="Type a message…" rows="1"></textarea>
+    <button class="send" id="sendBtn">➤</button>
+  </div>
+</div>
+
+<script>
+const AGENT_ID = "{{AGENT_ID}}";
+const THEME = "{{THEME}}";
+const API = window.location.origin;
+const sessionId = Math.random().toString(36).slice(2);
+
+document.body.className = THEME === 'light' ? 'light' : 'dark';
+
+const msgs = document.getElementById('messages');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+
+// Load agent name
+fetch(`${API}/api/agents/${AGENT_ID}`)
+  .then(r => r.json())
+  .then(a => { if(a.name) document.getElementById('agentName').textContent = a.name; })
+  .catch(()=>{});
+
+function addMsg(text, role) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const div = document.createElement('div');
+  div.id = 'typing';
+  div.className = 'msg agent';
+  div.innerHTML = '<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  const t = document.getElementById('typing');
+  if(t) t.remove();
+}
+
+async function send() {
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  input.style.height = '38px';
+  sendBtn.disabled = true;
+
+  addMsg(text, 'user');
+  showTyping();
+
+  try {
+    const r = await fetch(`${API}/api/agents/${AGENT_ID}/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: text, session_id: sessionId, channel: 'chat'})
+    });
+    const data = await r.json();
+    hideTyping();
+    addMsg(data.response || data.error || 'No response', 'agent');
+  } catch(e) {
+    hideTyping();
+    addMsg('Connection error: ' + e.message, 'system');
+  }
+  sendBtn.disabled = false;
+  input.focus();
+}
+
+sendBtn.addEventListener('click', send);
+input.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = '38px';
+  input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  agent-factory:
+    build: .
+    container_name: agent-factory
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - KIMI_API_KEY=${KIMI_API_KEY}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - LIVEKIT_URL=${LIVEKIT_URL}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      - PORT=8000
+    volumes:
+      - agent_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: agent-factory-elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    profiles:
+      - elk  # Only start with: docker-compose --profile elk up
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: agent-factory-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    profiles:
+      - elk
+
+volumes:
+  agent_data:
+  elastic_data:
