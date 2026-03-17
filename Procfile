@@ -1,2 +1,1 @@
-web: python main.py web
-telegram: python claudebot/web/server/telegram_bot.py
+web: cd claudebot/web/server && python start_railway.py
