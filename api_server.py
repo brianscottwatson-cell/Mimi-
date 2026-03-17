@@ -70,7 +70,7 @@ if os.path.exists(assets_path):
 # Global state
 sessions: Dict[str, PrimaryAgent] = {}
 current_model_provider = "anthropic"
-current_model_name = "claude-3-5-sonnet-20241022"
+current_model_name = "claude-sonnet-4-20250514"
 
 
 def get_or_create_session(session_id: str) -> PrimaryAgent:
@@ -413,7 +413,7 @@ async def switch_model(request: ModelSwitchRequest):
     else:
         # Default models
         if request.model_provider == "anthropic":
-            current_model_name = "claude-3-5-sonnet-20241022"
+            current_model_name = "claude-sonnet-4-20250514"
         elif request.model_provider == "kimi":
             current_model_name = "moonshot-v1-8k"
 

@@ -9,7 +9,7 @@ class SpecializedAgentFactory:
     """Factory for creating specialized agents."""
 
     @staticmethod
-    def create_research_agent(model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_research_agent(model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """Create a research specialist agent."""
         return BaseAgent(
             name="Research Agent",
@@ -36,7 +36,7 @@ Be thorough, accurate, and objective in your research.""",
         )
 
     @staticmethod
-    def create_marketing_agent(model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_marketing_agent(model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """Create a marketing specialist agent."""
         return BaseAgent(
             name="Marketing Agent",
@@ -65,7 +65,7 @@ Be creative, strategic, and results-oriented.""",
         )
 
     @staticmethod
-    def create_seo_agent(model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_seo_agent(model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """Create an SEO specialist agent."""
         return BaseAgent(
             name="SEO Agent",
@@ -95,7 +95,7 @@ Stay updated with Google's latest algorithm updates and best practices.""",
         )
 
     @staticmethod
-    def create_digital_marketing_agent(model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_digital_marketing_agent(model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """Create a digital marketing specialist agent."""
         return BaseAgent(
             name="Digital Marketing Agent",
@@ -125,7 +125,7 @@ Be data-driven, creative, and platform-savvy.""",
         )
 
     @staticmethod
-    def create_project_management_agent(model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_project_management_agent(model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """Create a project management specialist agent."""
         return BaseAgent(
             name="Project Management Agent",
@@ -158,7 +158,7 @@ Be organized, realistic, and focused on delivering results on time.""",
         )
 
     @staticmethod
-    def create_web_development_agent(model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_web_development_agent(model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """Create a web development specialist agent."""
         return BaseAgent(
             name="Web Development Agent",
@@ -202,7 +202,7 @@ Be practical, security-conscious, and quality-focused.""",
         }
 
     @staticmethod
-    def create_agent(agent_type: str, model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022") -> BaseAgent:
+    def create_agent(agent_type: str, model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514") -> BaseAgent:
         """
         Create a specialized agent by type.
 

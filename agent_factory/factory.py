@@ -101,7 +101,7 @@ class AgentFactory:
         # Route to appropriate LLM
         response_text = self.router.complete(
             provider=agent.get("llm_provider", "anthropic"),
-            model=agent.get("llm_model", "claude-3-5-sonnet-20241022"),
+            model=agent.get("llm_model", "claude-sonnet-4-20250514"),
             system_prompt=system_prompt,
             messages=history,
             max_tokens=agent.get("max_tokens", 2048),

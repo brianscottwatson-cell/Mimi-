@@ -9,11 +9,11 @@ from typing import List, Dict, Any, Optional
 PROVIDERS = {
     "anthropic": {
         "models": [
-            "claude-opus-4-6",
-            "claude-3-5-sonnet-20241022",
-            "claude-haiku-4-5-20251001",
+            "claude-opus-4-20250514",
+            "claude-sonnet-4-20250514",
+            "claude-haiku-4-5-20241022",
         ],
-        "default": "claude-3-5-sonnet-20241022",
+        "default": "claude-sonnet-4-20250514",
         "env_key": "ANTHROPIC_API_KEY",
         "description": "Anthropic Claude — state-of-the-art reasoning and instruction following",
     },
