@@ -22,7 +22,7 @@ def demo():
     try:
         agent = PrimaryAgent(
             model_provider="anthropic",
-            model_name="claude-sonnet-4-5-20250929"
+            model_name="claude-3-5-sonnet-20241022"
         )
         print("✓ Agent initialized successfully!\n")
     except Exception as e:

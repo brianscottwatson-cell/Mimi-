@@ -99,7 +99,7 @@ Here's a comprehensive SEO strategy for your e-commerce site...
 You: status
 System Status:
   Model Provider: anthropic
-  Model Name: claude-sonnet-4-5-20250929
+  Model Name: claude-3-5-sonnet-20241022
   Primary Agent: Primary Orchestrator
   Conversation Length: 4 messages
   Active Specialists:
@@ -175,7 +175,7 @@ When running in web mode, the following endpoints are available:
   ```json
   {
     "model_provider": "anthropic",  // or "kimi"
-    "model_name": "claude-sonnet-4-5-20250929"  // optional
+    "model_name": "claude-3-5-sonnet-20241022"  // optional
   }
   ```
 - `POST /api/reset?session_id=default` - Reset conversation

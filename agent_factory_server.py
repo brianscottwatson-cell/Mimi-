@@ -87,7 +87,7 @@ class AgentCreateRequest(BaseModel):
     name: str
     description: str = ""
     llm_provider: str = "anthropic"
-    llm_model: str = "claude-sonnet-4-6"
+    llm_model: str = "claude-3-5-sonnet-20241022"
     system_prompt: str = ""
     channels: List[str] = ["chat"]
     tools: List[str] = []

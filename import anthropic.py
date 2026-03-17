@@ -2,7 +2,7 @@ import anthropic
 client = anthropic.Anthropic()
 try:
     resp = client.messages.create(
-        model="claude-sonnet-4",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=100,
         messages=[{"role": "user", "content": "hi"}]
     )
