@@ -1,6 +1,6 @@
 flask
 flask-cors
-anthropic
+anthropic>=0.42.0
 python-dotenv
 requests
 elevenlabs

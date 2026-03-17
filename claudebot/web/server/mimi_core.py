@@ -1,7 +1,8 @@
 """
 mimi_core.py — Shared Mimi brain
 Provides: env loading, system prompt, Claude API clients, chat helpers,
-file processing, and TTS functions used by both app.py and telegram_bot.py.
+file processing, TTS, image generation, extended thinking, and
+conversation summarization used by both app.py and telegram_bot.py.
 """
 
 import os
@@ -9,12 +10,15 @@ import re
 import base64
 import struct
 import asyncio
+import logging
 import json as _json
 from pathlib import Path
 
 from dotenv import load_dotenv
 import anthropic
 import httpx
+
+logger = logging.getLogger("mimi-core")
 
 # ---------------------------------------------------------------------------
 # Load .env from project root (two levels up from web/server/)
@@ -105,6 +109,7 @@ When delegating:
 - If a task spans multiple agents, coordinate them: e.g. "Rex will research, then Cora will draft the copy"
 - Brian can address agents directly: "Rex, research X" or "Cora, write Y"
 - You can also proactively suggest which agent should handle something
+- For complex requests, use extended thinking to plan multi-agent coordination before responding
 
 == REAL-TIME WEB ACCESS ==
 You can search the web for current information. Use your web tools when Brian asks about:
@@ -192,6 +197,14 @@ SELF-MODIFICATION: You CAN update your own dashboard, agent config files, and we
 
 Safety: You cannot modify protected server files (app.py, mimi_core.py, telegram_bot.py, requirements.txt, etc.).
 
+== IMAGE GENERATION ==
+You can generate images using x.ai's Grok image model. Use the generate_image tool when:
+- Brian asks you to create, generate, design, or visualize something
+- [Dax] is working on visual concepts, logos, mockups, or brand assets
+- Brian says "imagine", "picture", "draw", "create an image of", etc.
+- You need to visualize a concept, design, or idea
+Always enhance the user's prompt with rich detail for better results. Describe style, colors, composition, mood.
+
 == SELF-EXTENSION: CUSTOM TOOLS & AGENTS ==
 You can create new tools and agent definitions for yourself using your GitHub file tools. These get loaded automatically when Railway redeploys (~60 seconds after git push to main).
 
@@ -223,7 +236,7 @@ Rules:
 - Start new sessions by acknowledging Brian or offering a quick status
 """
 
-MODEL = os.getenv("MIMI_MODEL", "claude-sonnet-4-5-20250929")
+MODEL = os.getenv("MIMI_MODEL", "claude-sonnet-4-6-20250514")
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".py", ".js", ".html", ".css"}
@@ -247,30 +260,74 @@ NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 # Chat helpers
 # ---------------------------------------------------------------------------
 
-def chat_with_mimi(messages: list[dict], use_kimi: bool = False) -> str:
+EXTENDED_THINKING_ENABLED = os.getenv("MIMI_EXTENDED_THINKING", "true").lower() == "true"
+THINKING_BUDGET = int(os.getenv("MIMI_THINKING_BUDGET", "8000"))
+
+# Keywords that hint the request needs deep thinking
+_THINKING_TRIGGERS = {
+    "analyze", "compare", "strategy", "plan", "research", "evaluate",
+    "pros and cons", "break down", "deep dive", "explain why",
+    "roi", "budget", "financial", "investment", "architecture",
+    "tradeoff", "trade-off", "prioritize", "recommend",
+}
+
+
+def _needs_thinking(messages: list[dict]) -> bool:
+    """Check if the latest user message likely benefits from extended thinking."""
+    if not EXTENDED_THINKING_ENABLED:
+        return False
+    if not messages:
+        return False
+    last = messages[-1]
+    content = last.get("content", "")
+    if isinstance(content, list):
+        content = " ".join(b.get("text", "") for b in content if isinstance(b, dict))
+    content_lower = content.lower()
+    # Long messages or trigger keywords
+    if len(content) > 300:
+        return True
+    return any(trigger in content_lower for trigger in _THINKING_TRIGGERS)
+
+
+def chat_with_mimi(messages: list[dict], use_kimi: bool = False, force_thinking: bool = False) -> str:
     """Synchronous chat. Set use_kimi=True for lighter tasks to save costs."""
     if use_kimi and NVIDIA_API_KEY:
         return _kimi_chat_sync(messages)
-    response = sync_client.messages.create(
+
+    use_thinking = force_thinking or _needs_thinking(messages)
+    kwargs = dict(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=THINKING_BUDGET + 4096 if use_thinking else 4096,
         system=SYSTEM_PROMPT,
         messages=messages,
     )
-    return response.content[0].text
+    if use_thinking:
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": THINKING_BUDGET}
+
+    response = sync_client.messages.create(**kwargs)
+    # Extract text, skipping thinking blocks
+    texts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
+    return "\n".join(texts) if texts else response.content[0].text
 
 
-async def achat_with_mimi(messages: list[dict], use_kimi: bool = False) -> str:
+async def achat_with_mimi(messages: list[dict], use_kimi: bool = False, force_thinking: bool = False) -> str:
     """Async chat. Set use_kimi=True for lighter tasks to save costs."""
     if use_kimi and NVIDIA_API_KEY:
         return await _kimi_chat_async(messages)
-    response = await async_client.messages.create(
+
+    use_thinking = force_thinking or _needs_thinking(messages)
+    kwargs = dict(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=THINKING_BUDGET + 4096 if use_thinking else 4096,
         system=SYSTEM_PROMPT,
         messages=messages,
     )
-    return response.content[0].text
+    if use_thinking:
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": THINKING_BUDGET}
+
+    response = await async_client.messages.create(**kwargs)
+    texts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
+    return "\n".join(texts) if texts else response.content[0].text
 
 
 def _kimi_messages(messages: list[dict]) -> list[dict]:
@@ -492,3 +549,190 @@ async def tts_to_ogg_bytes(text: str) -> bytes | None:
     audio.export(buf, format="ogg", codec="libopus",
                  parameters=["-application", "voip"])
     return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Conversation Summarization
+# ---------------------------------------------------------------------------
+
+SUMMARIZE_THRESHOLD = 40   # Start summarizing when history exceeds this
+KEEP_RECENT = 20           # Keep this many recent messages unsummarized
+
+
+def summarize_conversation(messages: list[dict]) -> str:
+    """Use Claude Haiku to create a concise summary of conversation messages."""
+    # Build a text representation of the conversation
+    convo_text = []
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        if isinstance(content, list):
+            text_parts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+            content = " ".join(text_parts)
+        if isinstance(content, str) and content.strip():
+            convo_text.append(f"{role}: {content[:500]}")
+
+    if not convo_text:
+        return ""
+
+    summary_prompt = (
+        "Summarize this conversation between Brian and Mimi (his AI assistant). "
+        "Capture key facts, decisions, action items, and context that would be "
+        "important for continuing the conversation later. Be concise but thorough. "
+        "Include specific numbers, names, and details.\n\n"
+        + "\n".join(convo_text)
+    )
+
+    try:
+        response = sync_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": summary_prompt}],
+        )
+        return response.content[0].text
+    except Exception as e:
+        logger.warning("Summarization failed: %s", e)
+        return ""
+
+
+async def asummarize_conversation(messages: list[dict]) -> str:
+    """Async version of summarize_conversation."""
+    convo_text = []
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        if isinstance(content, list):
+            text_parts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+            content = " ".join(text_parts)
+        if isinstance(content, str) and content.strip():
+            convo_text.append(f"{role}: {content[:500]}")
+
+    if not convo_text:
+        return ""
+
+    summary_prompt = (
+        "Summarize this conversation between Brian and Mimi (his AI assistant). "
+        "Capture key facts, decisions, action items, and context that would be "
+        "important for continuing the conversation later. Be concise but thorough. "
+        "Include specific numbers, names, and details.\n\n"
+        + "\n".join(convo_text)
+    )
+
+    try:
+        response = await async_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": summary_prompt}],
+        )
+        return response.content[0].text
+    except Exception as e:
+        logger.warning("Async summarization failed: %s", e)
+        return ""
+
+
+def build_messages_with_summary(
+    full_history: list[dict],
+    summary: str | None = None,
+) -> list[dict]:
+    """Build a message list with optional summary prefix for older context.
+
+    If history exceeds SUMMARIZE_THRESHOLD, prepend a summary of older messages
+    and only include the most recent KEEP_RECENT messages.
+    """
+    if len(full_history) <= SUMMARIZE_THRESHOLD:
+        return list(full_history)
+
+    # Split into old (to summarize) and recent (to keep)
+    recent = full_history[-KEEP_RECENT:]
+
+    if summary:
+        # Prepend summary as a system-injected user context message
+        summary_msg = {
+            "role": "user",
+            "content": f"[CONVERSATION CONTEXT — Summary of our earlier discussion]\n{summary}\n[END CONTEXT — Continuing conversation below]",
+        }
+        assistant_ack = {
+            "role": "assistant",
+            "content": "Got it — I have the context from our earlier conversation. Let's continue.",
+        }
+        return [summary_msg, assistant_ack] + recent
+
+    return recent
+
+
+# ---------------------------------------------------------------------------
+# x.ai Image Generation (Grok)
+# ---------------------------------------------------------------------------
+
+XAI_IMAGE_MODEL = os.getenv("XAI_IMAGE_MODEL", "grok-2-image")
+
+
+def xai_generate_image(prompt: str, n: int = 1) -> dict:
+    """Generate image(s) using x.ai's Grok image API.
+    Returns dict with 'images' list of URLs or 'error'.
+    """
+    if not XAI_API_KEY:
+        return {"error": "XAI_API_KEY not configured. Set it in environment variables."}
+
+    try:
+        resp = httpx.post(
+            "https://api.x.ai/v1/images/generations",
+            headers={
+                "Authorization": f"Bearer {XAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": XAI_IMAGE_MODEL,
+                "prompt": prompt,
+                "n": min(n, 4),
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        images = []
+        for item in data.get("data", []):
+            if item.get("url"):
+                images.append({"url": item["url"]})
+            elif item.get("b64_json"):
+                images.append({"b64_json": item["b64_json"]})
+        return {"images": images, "model": XAI_IMAGE_MODEL, "prompt": prompt}
+    except httpx.HTTPStatusError as e:
+        return {"error": f"x.ai image API error {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        return {"error": f"Image generation failed: {e}"}
+
+
+async def axai_generate_image(prompt: str, n: int = 1) -> dict:
+    """Async version of xai_generate_image."""
+    if not XAI_API_KEY:
+        return {"error": "XAI_API_KEY not configured."}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://api.x.ai/v1/images/generations",
+                headers={
+                    "Authorization": f"Bearer {XAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": XAI_IMAGE_MODEL,
+                    "prompt": prompt,
+                    "n": min(n, 4),
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            images = []
+            for item in data.get("data", []):
+                if item.get("url"):
+                    images.append({"url": item["url"]})
+                elif item.get("b64_json"):
+                    images.append({"b64_json": item["b64_json"]})
+            return {"images": images, "model": XAI_IMAGE_MODEL, "prompt": prompt}
+    except httpx.HTTPStatusError as e:
+        return {"error": f"x.ai image API error {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        return {"error": f"Image generation failed: {e}"}
