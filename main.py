@@ -56,14 +56,30 @@ def main():
     # Launch appropriate interface
     if mode == "web":
         print("🌐 Starting Web Server...")
-        from api_server import start_server
+        # Add server directory to path so imports work
+        server_dir = os.path.join(os.path.dirname(__file__), "claudebot", "web", "server")
+        sys.path.insert(0, server_dir)
+
+        # Initialize persistent memory
+        try:
+            from memory import init_db
+            init_db()
+            print("Persistent memory initialized (SQLite)")
+        except Exception as e:
+            print(f"WARNING: Memory init failed: {e}")
+
+        from app import app
         port = int(os.getenv("PORT", 8000))
-        start_server(port=port)
+        print(f"Mimi Gateway — Model loaded, port {port}")
+        app.run(host="0.0.0.0", port=port, debug=False)
 
     elif mode == "terminal":
         print("💻 Starting Terminal Interface...")
-        from terminal_interface import main as terminal_main
-        terminal_main()
+        server_dir = os.path.join(os.path.dirname(__file__), "claudebot", "web", "server")
+        sys.path.insert(0, server_dir)
+        from app import app
+        port = int(os.getenv("PORT", 8000))
+        app.run(host="0.0.0.0", port=port, debug=True)
 
     else:
         print(f"❌ Unknown mode: {mode}")
