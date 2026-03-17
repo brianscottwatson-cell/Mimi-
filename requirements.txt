@@ -1,10 +1,11 @@
-# Core AI/ML libraries
-anthropic>=0.39.0
-openai>=1.0.0  # For Kimi K2 via NVIDIA NIM
+# Core AI providers
+anthropic>=0.42.0
+openai>=1.0.0
 
 # Web framework (Flask)
 flask>=3.0.0
 flask-cors>=4.0.0
+gunicorn>=21.2.0
 
 # Twilio (SMS)
 twilio>=9.0.0
@@ -15,21 +16,21 @@ python-telegram-bot>=21.0
 # Web search (DuckDuckGo)
 duckduckgo-search>=7.0.0
 
-# Web scraping and tools
-requests>=2.31.0
-beautifulsoup4>=4.12.0
+# HTTP client
 httpx>=0.27.0
+requests>=2.31.0
 
 # Google services (Gmail, Calendar, Docs, Drive)
 google-auth>=2.0.0
 google-auth-oauthlib>=1.0.0
 google-api-python-client>=2.0.0
 
-# Data handling
+# Data / parsing
 python-dotenv>=1.0.0
-
-# TTS
-websockets>=12.0
-
-# Utilities
+beautifulsoup4>=4.12.0
 aiofiles>=23.0.0
+
+# TTS / Audio
+websockets>=12.0
+elevenlabs
+pydub>=0.25.1

@@ -733,6 +733,51 @@
             box-shadow: none;
         }
 
+        /* ── Eve Voice Button ── */
+        .voice-btn {
+            width: 44px;
+            height: 40px;
+            background: transparent;
+            border: 1px solid var(--cyber-cyan);
+            color: var(--cyber-cyan);
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            font-size: 20px;
+            text-shadow: 0 0 6px var(--cyber-cyan-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .voice-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            box-shadow: 0 0 10px var(--cyber-cyan-glow);
+        }
+        .voice-btn.listening {
+            border-color: var(--hot-pink);
+            color: var(--hot-pink);
+            text-shadow: 0 0 8px var(--hot-pink-glow);
+            animation: pulse-mic 1s ease-in-out infinite;
+        }
+        .voice-btn.speaking {
+            border-color: var(--phosphor-green);
+            color: var(--phosphor-green);
+            text-shadow: 0 0 8px var(--phosphor-green-glow);
+        }
+        @keyframes pulse-mic {
+            0%, 100% { box-shadow: 0 0 4px var(--hot-pink-glow); }
+            50% { box-shadow: 0 0 16px var(--hot-pink-glow); }
+        }
+        .voice-status {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: var(--cyber-cyan);
+            text-align: center;
+            padding-top: 2px;
+            letter-spacing: 0.08em;
+            min-height: 14px;
+        }
+
         .input-hint {
             text-align: center;
             margin-top: 6px;
@@ -943,11 +988,15 @@
                             oninput="autoResize(this)"
                         ></textarea>
                     </div>
+                    <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Talk to Eve (xAI voice)">
+                        🎙
+                    </button>
                     <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
                         &#9654;
                     </button>
                 </div>
-                <div class="input-hint">ENTER = SEND // SHIFT+ENTER = NEW LINE</div>
+                <div class="voice-status" id="voice-status"></div>
+                <div class="input-hint">ENTER = SEND // SHIFT+ENTER = NEW LINE // MIC = EVE VOICE</div>
             </div>
         </main>
     </div>
@@ -1210,6 +1259,184 @@
             };
             footer.appendChild(installBtn);
         });
+
+        // ── Eve Voice (xAI TTS + Browser STT) ──────────────────────────
+        let voiceActive = false;
+        let speechRecognition = null;
+        let currentAudio = null;
+
+        function setVoiceStatus(msg, color) {
+            const el = document.getElementById('voice-status');
+            el.textContent = msg;
+            el.style.color = color || 'var(--cyber-cyan)';
+        }
+
+        async function speakWithEve(text) {
+            try {
+                const btn = document.getElementById('voice-btn');
+                btn.classList.add('speaking');
+                setVoiceStatus('EVE SPEAKING...', 'var(--phosphor-green)');
+
+                const resp = await fetch('/api/grok/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice: 'eve', response_format: 'mp3' }),
+                });
+
+                if (!resp.ok) throw new Error('TTS API error: ' + resp.status);
+
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                currentAudio = new Audio(url);
+                currentAudio.onended = () => {
+                    URL.revokeObjectURL(url);
+                    btn.classList.remove('speaking');
+                    if (voiceActive) startListening();
+                    else setVoiceStatus('');
+                };
+                currentAudio.onerror = () => {
+                    btn.classList.remove('speaking');
+                    setVoiceStatus('AUDIO ERROR', 'var(--amber)');
+                };
+                await currentAudio.play();
+            } catch (err) {
+                document.getElementById('voice-btn').classList.remove('speaking');
+                setVoiceStatus('TTS ERROR: ' + err.message, 'var(--amber)');
+                console.error('Eve TTS error:', err);
+            }
+        }
+
+        function startListening() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                setVoiceStatus('SPEECH RECOGNITION NOT SUPPORTED', 'var(--amber)');
+                return;
+            }
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = false;
+            speechRecognition.lang = 'en-US';
+
+            const btn = document.getElementById('voice-btn');
+            btn.classList.add('listening');
+            btn.textContent = '🔴';
+            setVoiceStatus('LISTENING... (EVE IS READY)', 'var(--hot-pink)');
+
+            speechRecognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript.trim();
+                btn.classList.remove('listening');
+                btn.textContent = '🎙';
+                setVoiceStatus('PROCESSING: "' + transcript + '"', 'var(--cyber-cyan)');
+
+                // Put transcript in input and send it
+                document.getElementById('message-input').value = transcript;
+                document.getElementById('send-btn').disabled = false;
+
+                // Intercept the response to speak it with Eve
+                await sendMessageWithVoice(transcript);
+            };
+
+            speechRecognition.onerror = (e) => {
+                btn.classList.remove('listening');
+                btn.textContent = '🎙';
+                setVoiceStatus('MIC ERROR: ' + e.error, 'var(--amber)');
+                if (e.error !== 'aborted' && voiceActive) {
+                    setTimeout(startListening, 1500);
+                }
+            };
+
+            speechRecognition.onend = () => {
+                btn.classList.remove('listening');
+                btn.textContent = '🎙';
+            };
+
+            speechRecognition.start();
+        }
+
+        async function sendMessageWithVoice(text) {
+            if (!text || isStreaming) return;
+            const inputEl = document.getElementById('message-input');
+            inputEl.value = '';
+            autoResize(inputEl);
+            document.getElementById('send-btn').disabled = true;
+
+            addMessage('user', text);
+            isStreaming = true;
+            showTyping(true);
+
+            try {
+                const body = { message: text, stream: true };
+                if (currentConversationId) body.conversation_id = currentConversationId;
+                const agentSel = document.getElementById('agent-select');
+                if (agentSel && agentSel.value) body.agent_id = agentSel.value;
+
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                if (!resp.ok) throw new Error('Chat error ' + resp.status);
+                showTyping(false);
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
+                let msgEl = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') continue;
+                        try {
+                            const parsed = JSON.parse(data);
+                            const token = parsed.delta || parsed.text || '';
+                            if (token) {
+                                fullText += token;
+                                if (!msgEl) msgEl = addMessage('assistant', fullText);
+                                else msgEl.querySelector('.message-content').textContent = fullText;
+                            }
+                            if (parsed.conversation_id && !currentConversationId) {
+                                currentConversationId = parsed.conversation_id;
+                            }
+                        } catch {}
+                    }
+                }
+
+                // Speak the response with Eve
+                if (fullText && voiceActive) {
+                    await speakWithEve(fullText);
+                }
+            } catch (err) {
+                showTyping(false);
+                addMessage('assistant', '[ERROR] ' + err.message);
+                if (voiceActive) startListening();
+            } finally {
+                isStreaming = false;
+            }
+        }
+
+        function toggleVoice() {
+            voiceActive = !voiceActive;
+            const btn = document.getElementById('voice-btn');
+            if (voiceActive) {
+                setVoiceStatus('EVE VOICE ACTIVE', 'var(--cyber-cyan)');
+                startListening();
+            } else {
+                voiceActive = false;
+                if (speechRecognition) speechRecognition.abort();
+                if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+                btn.classList.remove('listening', 'speaking');
+                btn.textContent = '🎙';
+                setVoiceStatus('');
+            }
+        }
+        // ── End Eve Voice ────────────────────────────────────────────────
     </script>
 </body>
 </html>

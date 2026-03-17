@@ -24,7 +24,7 @@ import json as _json
 import anthropic
 
 from mimi_core import (
-    SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
+    MODEL, IMAGE_TYPES,
     async_client,
     achat_with_mimi,
     process_image_bytes, process_document_bytes,
@@ -130,7 +130,10 @@ async def _get_messages_with_context(uid: int) -> list[dict]:
 from app import (
     WEB_TOOLS, GOOGLE_TOOLS, GOOGLE_AVAILABLE,
     DASHBOARD_TOOLS, GITHUB_TOOLS, GITHUB_AVAILABLE,
-    TOOL_HANDLERS,
+    SMS_TOOLS, TWILIO_AVAILABLE,
+    TELEGRAM_TOOLS, TELEGRAM_OUTBOUND_AVAILABLE,
+    CUSTOM_TOOLS, TOOL_HANDLERS,
+    SYSTEM_PROMPT,
 )
 
 # Image generation tool definition
@@ -161,10 +164,16 @@ async def _achat_with_tools(messages: list[dict], stream_callback=None) -> str:
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
     tools.extend(DASHBOARD_TOOLS)
+    if TWILIO_AVAILABLE:
+        tools.extend(SMS_TOOLS)
+    if TELEGRAM_OUTBOUND_AVAILABLE:
+        tools.extend(TELEGRAM_TOOLS)
     if GITHUB_AVAILABLE:
         tools.extend(GITHUB_TOOLS)
     if XAI_API_KEY:
         tools.append(IMAGE_GEN_TOOL)
+    if CUSTOM_TOOLS:
+        tools.extend(CUSTOM_TOOLS)
 
     # Check if extended thinking should be enabled
     use_thinking = _needs_thinking(messages)

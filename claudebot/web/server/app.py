@@ -10,7 +10,7 @@ from twilio.rest import Client as TwilioClient
 
 # Import shared Mimi brain — env loading happens on import
 from mimi_core import (
-    SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
+    SYSTEM_PROMPT as _BASE_SYSTEM_PROMPT, MODEL, IMAGE_TYPES,
     sync_client as client,
     chat_with_mimi,
     process_image_bytes, process_document_bytes,
@@ -59,6 +59,40 @@ try:
     )
 except Exception:
     DISPATCH_AVAILABLE = False
+
+# Custom tools (Mimi-created, auto-loaded from custom_tools/)
+try:
+    from custom_tools import load_custom_tools
+    CUSTOM_TOOLS, CUSTOM_HANDLERS = load_custom_tools()
+    print(f"[app] Custom tools loaded: {len(CUSTOM_TOOLS)}", flush=True)
+except Exception as e:
+    print(f"[app] Custom tools loader error (non-fatal): {e}", flush=True)
+    CUSTOM_TOOLS, CUSTOM_HANDLERS = [], {}
+
+# Custom agents (Mimi-created, auto-loaded from custom_agents/)
+try:
+    from custom_agents import load_custom_agents
+    CUSTOM_AGENTS = load_custom_agents()
+    print(f"[app] Custom agents loaded: {len(CUSTOM_AGENTS)}", flush=True)
+except Exception as e:
+    print(f"[app] Custom agents loader error (non-fatal): {e}", flush=True)
+    CUSTOM_AGENTS = []
+
+# Build runtime system prompt (inject custom agents if any)
+def _build_system_prompt():
+    prompt = _BASE_SYSTEM_PROMPT
+    if CUSTOM_AGENTS:
+        section = "\n\n== CUSTOM AGENTS (self-created) ==\n"
+        for a in CUSTOM_AGENTS:
+            section += f"\n{a['description']}\n"
+        marker = "== INTERACTION RULES =="
+        if marker in prompt:
+            prompt = prompt.replace(marker, section + "\n" + marker)
+        else:
+            prompt += section
+    return prompt
+
+SYSTEM_PROMPT = _build_system_prompt()
 
 # Web search (free, no API key)
 from web_search import (
@@ -201,6 +235,12 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "").strip()
 _allowed_sms = os.getenv("TWILIO_ALLOWED_NUMBERS", "").strip()
 TWILIO_ALLOWED_NUMBERS = {n.strip() for n in _allowed_sms.split(",") if n.strip()} if _allowed_sms else set()
+TWILIO_AVAILABLE = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER)
+
+# Telegram outbound config
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_DEFAULT_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+TELEGRAM_OUTBOUND_AVAILABLE = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_DEFAULT_CHAT_ID)
 
 # Per-phone SMS conversation history (phone -> list of messages)
 sms_history: dict[str, list[dict]] = {}
@@ -484,6 +524,101 @@ GOOGLE_TOOLS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Outbound SMS (Twilio) — Mimi can proactively text Brian
+# ---------------------------------------------------------------------------
+
+def sms_send(to, message):
+    """Send an outbound SMS via Twilio."""
+    from twilio.rest import Client
+    twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    msg = twilio_client.messages.create(
+        body=message,
+        from_=TWILIO_PHONE_NUMBER,
+        to=to,
+    )
+    return {"status": "sent", "sid": msg.sid, "to": to}
+
+SMS_TOOLS = [
+    {
+        "name": "sms_send",
+        "description": "Send an outbound SMS text message to a phone number. Use to proactively message Brian or send reminders.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "to": {"type": "string", "description": "Recipient phone number in E.164 format (e.g. +13035551234)"},
+                "message": {"type": "string", "description": "Message text (max ~1600 chars)"},
+            },
+            "required": ["to", "message"],
+        },
+    },
+]
+
+# ---------------------------------------------------------------------------
+# Outbound Telegram — Mimi can proactively message Brian on Telegram
+# ---------------------------------------------------------------------------
+
+def telegram_send_message(text, chat_id=None, parse_mode=None):
+    """Send a Telegram message to Brian (or a specific chat)."""
+    import httpx
+    cid = chat_id or TELEGRAM_DEFAULT_CHAT_ID
+    payload = {"chat_id": cid, "text": text}
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
+    resp = httpx.post(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        json=payload,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return {"status": "sent", "message_id": data["result"]["message_id"], "chat_id": cid}
+
+def telegram_send_photo(photo_url, caption=None, chat_id=None):
+    """Send a photo via Telegram to Brian (or a specific chat)."""
+    import httpx
+    cid = chat_id or TELEGRAM_DEFAULT_CHAT_ID
+    payload = {"chat_id": cid, "photo": photo_url}
+    if caption:
+        payload["caption"] = caption
+    resp = httpx.post(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto",
+        json=payload,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return {"status": "sent", "message_id": data["result"]["message_id"], "chat_id": cid}
+
+TELEGRAM_TOOLS = [
+    {
+        "name": "telegram_send_message",
+        "description": "Send a Telegram message to Brian. Use to proactively share updates, reminders, or information.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Message text (supports Markdown)"},
+                "chat_id": {"type": "string", "description": "Telegram chat ID (defaults to Brian's chat)"},
+                "parse_mode": {"type": "string", "description": "Optional: 'Markdown' or 'HTML'"},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "telegram_send_photo",
+        "description": "Send a photo via Telegram to Brian.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "photo_url": {"type": "string", "description": "URL of the photo to send"},
+                "caption": {"type": "string", "description": "Photo caption (optional)"},
+                "chat_id": {"type": "string", "description": "Telegram chat ID (defaults to Brian's chat)"},
+            },
+            "required": ["photo_url"],
+        },
+    },
+]
+
+# ---------------------------------------------------------------------------
 # Dashboard Tools for Claude (so Mimi can manage the dashboard)
 # ---------------------------------------------------------------------------
 
@@ -714,6 +849,19 @@ for _dt in DASHBOARD_TOOLS:
     _tool_name = _dt["name"]
     TOOL_HANDLERS[_tool_name] = (lambda tn: lambda **kw: _handle_dashboard_tool(tn, kw))(_tool_name)
 
+# SMS outbound tools (if Twilio is configured)
+if TWILIO_AVAILABLE:
+    TOOL_HANDLERS.update({
+        "sms_send": lambda **kw: sms_send(**kw),
+    })
+
+# Telegram outbound tools (if bot token + chat ID are set)
+if TELEGRAM_OUTBOUND_AVAILABLE:
+    TOOL_HANDLERS.update({
+        "telegram_send_message": lambda **kw: telegram_send_message(**kw),
+        "telegram_send_photo": lambda **kw: telegram_send_photo(**kw),
+    })
+
 # GitHub tools (if GITHUB_TOKEN is set)
 if GITHUB_AVAILABLE:
     TOOL_HANDLERS.update({
@@ -823,6 +971,10 @@ if XAI_API_KEY:
 # MCP plugin handlers
 TOOL_HANDLERS.update(MCP_HANDLERS)
 
+# Custom tools (Mimi-created)
+if CUSTOM_HANDLERS:
+    TOOL_HANDLERS.update(CUSTOM_HANDLERS)
+
 
 def _chat_with_tools(messages):
     """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub + SMS + dispatch + image gen."""
@@ -830,16 +982,20 @@ def _chat_with_tools(messages):
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
     tools.extend(DASHBOARD_TOOLS)
-    if GITHUB_AVAILABLE:
-        tools.extend(GITHUB_TOOLS)
     if TWILIO_AVAILABLE:
         tools.extend(SMS_TOOLS)
+    if TELEGRAM_OUTBOUND_AVAILABLE:
+        tools.extend(TELEGRAM_TOOLS)
+    if GITHUB_AVAILABLE:
+        tools.extend(GITHUB_TOOLS)
     if DISPATCH_AVAILABLE:
         tools.extend(DISPATCH_TOOLS)
     if XAI_API_KEY:
         tools.extend(IMAGE_GEN_TOOLS)
     if MCP_TOOLS:
         tools.extend(MCP_TOOLS)
+    if CUSTOM_TOOLS:
+        tools.extend(CUSTOM_TOOLS)
 
     # Extended thinking for complex requests
     use_thinking = _needs_thinking(messages)
@@ -1358,4 +1514,9 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print(f"Mimi Gateway v1.0 — Model: {MODEL}")
     print(f"Serving frontend from: {CLIENT_DIR}")
+    print(f"Google: {'enabled' if GOOGLE_AVAILABLE else 'disabled'}")
+    print(f"Twilio SMS: {'enabled' if TWILIO_AVAILABLE else 'disabled'} (SID={'set' if TWILIO_ACCOUNT_SID else 'MISSING'}, AUTH={'set' if TWILIO_AUTH_TOKEN else 'MISSING'}, PHONE={'set' if TWILIO_PHONE_NUMBER else 'MISSING'})")
+    print(f"Telegram outbound: {'enabled' if TELEGRAM_OUTBOUND_AVAILABLE else 'disabled'} (TOKEN={'set' if TELEGRAM_BOT_TOKEN else 'MISSING'}, CHAT_ID={'set' if TELEGRAM_DEFAULT_CHAT_ID else 'MISSING'})")
+    print(f"GitHub: {'enabled' if GITHUB_AVAILABLE else 'disabled'}")
+    print(f"Tools available: {len(TOOL_HANDLERS)}")
     app.run(host="0.0.0.0", port=port, debug=True)

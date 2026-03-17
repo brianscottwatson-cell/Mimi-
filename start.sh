@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Starting Multi-Agent AI System..."
-echo "Python version: $(python3 --version)"
+echo "🏭 Agent Factory Platform"
+echo "Python: $(python3 --version)"
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install -r requirements.txt || true
+pip install -r requirements.txt --quiet || true
 
-# Check for API keys
-if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$KIMI_API_KEY" ]; then
-    echo "WARNING: No API keys found!"
-    echo "Set ANTHROPIC_API_KEY or KIMI_API_KEY in your environment"
+# Create data directory
+mkdir -p data
+
+# Check for at least one API key
+if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$XAI_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+    echo "⚠️  WARNING: No LLM API key found!"
+    echo "   Set ANTHROPIC_API_KEY, XAI_API_KEY, or OPENAI_API_KEY"
 fi
 
-# Start the application (pass any arguments through)
-echo "Starting application..."
-exec python3 main.py "$@"
+PORT="${PORT:-8000}"
+echo "🚀 Starting Agent Factory on http://0.0.0.0:${PORT}"
+echo "📚 API Docs: http://0.0.0.0:${PORT}/api/docs"
+exec uvicorn agent_factory_server:app --host 0.0.0.0 --port "$PORT"
