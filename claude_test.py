@@ -41,7 +41,7 @@ def main():
         return
 
     client = anthropic.Anthropic(api_key=api_key)
-    model = "claude-3-haiku-20240307"
+    model = "claude-haiku-4-5-20241022"
 
     conversation = [
         {"role": "system", "content": "You are Claude, a helpful assistant."}

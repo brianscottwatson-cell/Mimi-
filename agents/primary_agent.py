@@ -15,7 +15,7 @@ class PrimaryAgent:
     4. Synthesizes final responses
     """
 
-    def __init__(self, model_provider: str = "anthropic", model_name: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, model_provider: str = "anthropic", model_name: str = "claude-sonnet-4-20250514"):
         """
         Initialize the primary agent.
 

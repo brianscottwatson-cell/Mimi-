@@ -236,7 +236,7 @@ Rules:
 - Start new sessions by acknowledging Brian or offering a quick status
 """
 
-MODEL = os.getenv("MIMI_MODEL", "claude-3-5-sonnet-20241022")
+MODEL = os.getenv("MIMI_MODEL", "claude-sonnet-4-20250514")
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".py", ".js", ".html", ".css"}
@@ -585,7 +585,7 @@ def summarize_conversation(messages: list[dict]) -> str:
 
     try:
         response = sync_client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model="claude-haiku-4-5-20241022",
             max_tokens=1024,
             messages=[{"role": "user", "content": summary_prompt}],
         )
@@ -620,7 +620,7 @@ async def asummarize_conversation(messages: list[dict]) -> str:
 
     try:
         response = await async_client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model="claude-haiku-4-5-20241022",
             max_tokens=1024,
             messages=[{"role": "user", "content": summary_prompt}],
         )

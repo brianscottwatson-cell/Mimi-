@@ -96,7 +96,7 @@ def switch_model(primary_agent: PrimaryAgent):
     choice = input(f"{CYAN}Choose (1 or 2):{RESET} ").strip()
 
     if choice == "1":
-        primary_agent.switch_model("anthropic", "claude-3-5-sonnet-20241022")
+        primary_agent.switch_model("anthropic", "claude-sonnet-4-20250514")
         print(f"{GREEN}✓ Switched to Claude Sonnet 4.5{RESET}\n")
     elif choice == "2":
         primary_agent.switch_model("kimi", "moonshot-v1-8k")
@@ -121,7 +121,7 @@ def main():
     # Choose default model based on available keys
     if has_anthropic:
         model_provider = "anthropic"
-        model_name = "claude-3-5-sonnet-20241022"
+        model_name = "claude-sonnet-4-20250514"
     else:
         model_provider = "kimi"
         model_name = "moonshot-v1-8k"

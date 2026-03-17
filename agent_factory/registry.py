@@ -67,7 +67,7 @@ class AgentRegistry:
         record.setdefault("name", f"Agent-{agent_id[:8]}")
         record.setdefault("description", "")
         record.setdefault("llm_provider", "anthropic")
-        record.setdefault("llm_model", "claude-3-5-sonnet-20241022")
+        record.setdefault("llm_model", "claude-sonnet-4-20250514")
         record.setdefault("channels", ["chat"])
         record.setdefault("tools", [])
         record.setdefault("soul", None)
