@@ -236,7 +236,7 @@ Rules:
 - Start new sessions by acknowledging Brian or offering a quick status
 """
 
-MODEL = os.getenv("MIMI_MODEL", "claude-sonnet-4-6-20250514")
+MODEL = os.getenv("MIMI_MODEL", "claude-sonnet-4-5-20241022")
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".py", ".js", ".html", ".css"}
