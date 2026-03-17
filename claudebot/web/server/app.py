@@ -6,6 +6,7 @@ import anthropic
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client as TwilioClient
 
 # Import shared Mimi brain — env loading happens on import
 from mimi_core import (
@@ -16,6 +17,15 @@ from mimi_core import (
     strip_markdown, pcm_to_wav, xai_tts_sync,
     XAI_API_KEY, XAI_VOICE, XAI_TTS_SAMPLE_RATE,
     ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID,
+    xai_generate_image,
+    summarize_conversation, build_messages_with_summary,
+    SUMMARIZE_THRESHOLD, KEEP_RECENT,
+    _needs_thinking, THINKING_BUDGET,
+)
+
+from memory import (
+    save_message, get_history as db_get_history, clear_history as db_clear_history,
+    get_message_count, save_summary, get_latest_summary,
 )
 
 # Google services (optional — graceful if not authed)
@@ -40,6 +50,15 @@ try:
     )
 except Exception:
     GITHUB_AVAILABLE = False
+
+# Claude Code dispatch (Mimi's self-update capability)
+try:
+    from claude_dispatch import (
+        claude_code_dispatch, claude_code_list_tasks,
+        DISPATCH_AVAILABLE,
+    )
+except Exception:
+    DISPATCH_AVAILABLE = False
 
 # Custom tools (Mimi-created, auto-loaded from custom_tools/)
 try:
@@ -82,6 +101,15 @@ from web_search import (
     x_search, x_news,
 )
 
+# MCP tool plugins (load external tools from JSON config)
+try:
+    from mcp_tools import get_tool_definitions as mcp_get_tools, get_tool_handlers as mcp_get_handlers
+    MCP_TOOLS = mcp_get_tools()
+    MCP_HANDLERS = mcp_get_handlers()
+except Exception:
+    MCP_TOOLS = []
+    MCP_HANDLERS = {}
+
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
@@ -99,6 +127,7 @@ CORS(app)
 
 # Pricing per million tokens (as of Feb 2026)
 MODEL_PRICING = {
+    "claude-sonnet-4-6-20250514": {"input": 3.0, "output": 15.0},
     "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
     "claude-opus-4-6":            {"input": 15.0, "output": 75.0},
     "claude-haiku-4-5-20251001":  {"input": 0.80, "output": 4.0},
@@ -216,6 +245,27 @@ TELEGRAM_OUTBOUND_AVAILABLE = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_DEFAULT_CHAT_
 # Per-phone SMS conversation history (phone -> list of messages)
 sms_history: dict[str, list[dict]] = {}
 SMS_MAX_HISTORY = 30  # Keep last 30 messages per phone number
+
+# Twilio REST client for outbound SMS
+TWILIO_AVAILABLE = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER)
+twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) if TWILIO_AVAILABLE else None
+
+
+def sms_send(phone_number: str, message: str) -> dict:
+    """Send an outbound SMS via Twilio."""
+    if not twilio_client:
+        return {"error": "Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER."}
+    try:
+        msg = twilio_client.messages.create(
+            to=phone_number,
+            from_=TWILIO_PHONE_NUMBER,
+            body=message[:1600],  # Twilio limit
+        )
+        _log_activity(f"SMS sent to ...{phone_number[-4:]}: {message[:40]}")
+        return {"status": "sent", "sid": msg.sid, "to": phone_number}
+    except Exception as e:
+        return {"error": f"SMS send failed: {e}"}
+
 
 # ---------------------------------------------------------------------------
 # Auth helper
@@ -823,13 +873,111 @@ if GITHUB_AVAILABLE:
         "github_get_pages_status": lambda **kw: github_get_pages_status(**kw),
     })
 
+# ---------------------------------------------------------------------------
+# SMS Outbound Tool for Claude
+# ---------------------------------------------------------------------------
+
+SMS_TOOLS = [
+    {
+        "name": "sms_send",
+        "description": "Send an SMS text message to a phone number via Twilio. Use this when Brian asks you to text someone, send an SMS, or when you need to proactively notify Brian about something important. Phone numbers must be in E.164 format (e.g. +13035551234).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "phone_number": {"type": "string", "description": "Recipient phone number in E.164 format (e.g. +13035551234)"},
+                "message": {"type": "string", "description": "The message text to send (max 1600 chars)"},
+            },
+            "required": ["phone_number", "message"],
+        },
+    },
+]
+
+if TWILIO_AVAILABLE:
+    TOOL_HANDLERS["sms_send"] = lambda **kw: sms_send(**kw)
+
+# ---------------------------------------------------------------------------
+# Claude Code Dispatch Tools (Mimi's self-update capability)
+# ---------------------------------------------------------------------------
+
+DISPATCH_TOOLS = [
+    {
+        "name": "claude_code_dispatch",
+        "description": "Dispatch a development task to Claude Code. Use this when Brian asks for code changes, new features, bug fixes, new agents, or any modification to the Mimi codebase. Creates a GitHub Issue that Claude Code will pick up and implement, then creates a PR. Examples: 'Add a new agent', 'Fix the SMS sending', 'Update the dashboard UI'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string", "description": "Clear description of what needs to be built, fixed, or changed"},
+                "files_to_modify": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of file paths that likely need changes",
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "Task priority (default: medium)",
+                },
+                "branch_name": {"type": "string", "description": "Optional git branch name for this work"},
+            },
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "claude_code_list_tasks",
+        "description": "List existing development tasks dispatched to Claude Code. Shows open/closed issues labeled 'claude-code'. Use to check on pending work or review completed tasks.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "enum": ["open", "closed", "all"],
+                    "description": "Filter by issue state (default: open)",
+                },
+            },
+        },
+    },
+]
+
+if DISPATCH_AVAILABLE:
+    TOOL_HANDLERS["claude_code_dispatch"] = lambda **kw: claude_code_dispatch(**kw)
+    TOOL_HANDLERS["claude_code_list_tasks"] = lambda **kw: claude_code_list_tasks(**kw)
+
+# Image generation tool
+IMAGE_GEN_TOOLS = [
+    {
+        "name": "generate_image",
+        "description": "Generate an image using x.ai's Grok image model. Use when Brian asks to create, visualize, design, or imagine something visual. [Dax] should use this for visual concepts. Enhance the prompt with rich detail for better results.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Detailed image generation prompt. Be specific about style, colors, composition, subjects, mood, and artistic direction.",
+                },
+                "n": {
+                    "type": "integer",
+                    "description": "Number of images to generate (1-4, default 1)",
+                    "default": 1,
+                },
+            },
+            "required": ["prompt"],
+        },
+    },
+]
+
+if XAI_API_KEY:
+    TOOL_HANDLERS["generate_image"] = lambda **kw: xai_generate_image(**kw)
+
+# MCP plugin handlers
+TOOL_HANDLERS.update(MCP_HANDLERS)
+
 # Custom tools (Mimi-created)
 if CUSTOM_HANDLERS:
     TOOL_HANDLERS.update(CUSTOM_HANDLERS)
 
 
 def _chat_with_tools(messages):
-    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub. Handles tool call loops."""
+    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub + SMS + dispatch + image gen."""
     tools = list(WEB_TOOLS)  # Web search always available
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
@@ -840,15 +988,28 @@ def _chat_with_tools(messages):
         tools.extend(TELEGRAM_TOOLS)
     if GITHUB_AVAILABLE:
         tools.extend(GITHUB_TOOLS)
+    if DISPATCH_AVAILABLE:
+        tools.extend(DISPATCH_TOOLS)
+    if XAI_API_KEY:
+        tools.extend(IMAGE_GEN_TOOLS)
+    if MCP_TOOLS:
+        tools.extend(MCP_TOOLS)
     if CUSTOM_TOOLS:
         tools.extend(CUSTOM_TOOLS)
-    response = client.messages.create(
+
+    # Extended thinking for complex requests
+    use_thinking = _needs_thinking(messages)
+    kwargs = dict(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=THINKING_BUDGET + 4096 if use_thinking else 4096,
         system=SYSTEM_PROMPT,
         messages=messages,
         tools=tools if tools else anthropic.NOT_GIVEN,
     )
+    if use_thinking:
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": THINKING_BUDGET}
+
+    response = client.messages.create(**kwargs)
     _track_tokens(response)
 
     # Handle tool use loop (max 5 rounds to prevent infinite loops)
@@ -856,7 +1017,6 @@ def _chat_with_tools(messages):
         if response.stop_reason != "tool_use":
             break
 
-        # Extract text and tool calls from response
         assistant_content = response.content
         tool_results = []
 
@@ -888,21 +1048,21 @@ def _chat_with_tools(messages):
                         "is_error": True,
                     })
 
-        # Continue conversation with tool results
         messages.append({"role": "assistant", "content": assistant_content})
         messages.append({"role": "user", "content": tool_results})
 
+        # Subsequent calls — no thinking needed
         response = client.messages.create(
             model=MODEL,
-            max_tokens=2048,
+            max_tokens=4096,
             system=SYSTEM_PROMPT,
             messages=messages,
             tools=tools,
         )
         _track_tokens(response)
 
-    # Extract final text response
-    text_parts = [b.text for b in response.content if hasattr(b, "text")]
+    # Extract final text response (skip thinking blocks)
+    text_parts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
     return "\n".join(text_parts) if text_parts else "Done."
 
 def _process_uploaded_files(files):
@@ -1170,6 +1330,30 @@ def sms_webhook():
     resp = MessagingResponse()
     resp.message(reply)
     return str(resp), 200, {"Content-Type": "application/xml"}
+
+
+# ---------------------------------------------------------------------------
+# Capabilities status
+# ---------------------------------------------------------------------------
+
+@app.route("/api/capabilities", methods=["GET"])
+def capabilities():
+    """Report all connected tools and services."""
+    return jsonify({
+        "model": MODEL,
+        "google": GOOGLE_AVAILABLE,
+        "github": GITHUB_AVAILABLE,
+        "sms_outbound": TWILIO_AVAILABLE,
+        "sms_inbound": bool(TWILIO_ACCOUNT_SID),
+        "claude_dispatch": DISPATCH_AVAILABLE,
+        "tts_xai": bool(XAI_API_KEY),
+        "tts_elevenlabs": bool(ELEVENLABS_API_KEY),
+        "image_gen": bool(XAI_API_KEY),
+        "web_search": True,
+        "extended_thinking": True,
+        "persistent_memory": True,
+        "mcp_tools": len(MCP_TOOLS),
+    })
 
 
 # ---------------------------------------------------------------------------
