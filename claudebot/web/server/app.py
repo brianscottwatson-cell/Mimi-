@@ -17,6 +17,15 @@ from mimi_core import (
     strip_markdown, pcm_to_wav, xai_tts_sync,
     XAI_API_KEY, XAI_VOICE, XAI_TTS_SAMPLE_RATE,
     ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID,
+    xai_generate_image,
+    summarize_conversation, build_messages_with_summary,
+    SUMMARIZE_THRESHOLD, KEEP_RECENT,
+    _needs_thinking, THINKING_BUDGET,
+)
+
+from memory import (
+    save_message, get_history as db_get_history, clear_history as db_clear_history,
+    get_message_count, save_summary, get_latest_summary,
 )
 
 # Google services (optional — graceful if not authed)
@@ -58,6 +67,15 @@ from web_search import (
     x_search, x_news,
 )
 
+# MCP tool plugins (load external tools from JSON config)
+try:
+    from mcp_tools import get_tool_definitions as mcp_get_tools, get_tool_handlers as mcp_get_handlers
+    MCP_TOOLS = mcp_get_tools()
+    MCP_HANDLERS = mcp_get_handlers()
+except Exception:
+    MCP_TOOLS = []
+    MCP_HANDLERS = {}
+
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
@@ -75,6 +93,7 @@ CORS(app)
 
 # Pricing per million tokens (as of Feb 2026)
 MODEL_PRICING = {
+    "claude-sonnet-4-6-20250514": {"input": 3.0, "output": 15.0},
     "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
     "claude-opus-4-6":            {"input": 15.0, "output": 75.0},
     "claude-haiku-4-5-20251001":  {"input": 0.80, "output": 4.0},
@@ -775,9 +794,38 @@ if DISPATCH_AVAILABLE:
     TOOL_HANDLERS["claude_code_dispatch"] = lambda **kw: claude_code_dispatch(**kw)
     TOOL_HANDLERS["claude_code_list_tasks"] = lambda **kw: claude_code_list_tasks(**kw)
 
+# Image generation tool
+IMAGE_GEN_TOOLS = [
+    {
+        "name": "generate_image",
+        "description": "Generate an image using x.ai's Grok image model. Use when Brian asks to create, visualize, design, or imagine something visual. [Dax] should use this for visual concepts. Enhance the prompt with rich detail for better results.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Detailed image generation prompt. Be specific about style, colors, composition, subjects, mood, and artistic direction.",
+                },
+                "n": {
+                    "type": "integer",
+                    "description": "Number of images to generate (1-4, default 1)",
+                    "default": 1,
+                },
+            },
+            "required": ["prompt"],
+        },
+    },
+]
+
+if XAI_API_KEY:
+    TOOL_HANDLERS["generate_image"] = lambda **kw: xai_generate_image(**kw)
+
+# MCP plugin handlers
+TOOL_HANDLERS.update(MCP_HANDLERS)
+
 
 def _chat_with_tools(messages):
-    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub + SMS + dispatch."""
+    """Chat with Mimi using tool use for web search + Google services + dashboard + GitHub + SMS + dispatch + image gen."""
     tools = list(WEB_TOOLS)  # Web search always available
     if GOOGLE_AVAILABLE:
         tools.extend(GOOGLE_TOOLS)
@@ -788,13 +836,24 @@ def _chat_with_tools(messages):
         tools.extend(SMS_TOOLS)
     if DISPATCH_AVAILABLE:
         tools.extend(DISPATCH_TOOLS)
-    response = client.messages.create(
+    if XAI_API_KEY:
+        tools.extend(IMAGE_GEN_TOOLS)
+    if MCP_TOOLS:
+        tools.extend(MCP_TOOLS)
+
+    # Extended thinking for complex requests
+    use_thinking = _needs_thinking(messages)
+    kwargs = dict(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=THINKING_BUDGET + 4096 if use_thinking else 4096,
         system=SYSTEM_PROMPT,
         messages=messages,
         tools=tools if tools else anthropic.NOT_GIVEN,
     )
+    if use_thinking:
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": THINKING_BUDGET}
+
+    response = client.messages.create(**kwargs)
     _track_tokens(response)
 
     # Handle tool use loop (max 5 rounds to prevent infinite loops)
@@ -802,7 +861,6 @@ def _chat_with_tools(messages):
         if response.stop_reason != "tool_use":
             break
 
-        # Extract text and tool calls from response
         assistant_content = response.content
         tool_results = []
 
@@ -834,21 +892,21 @@ def _chat_with_tools(messages):
                         "is_error": True,
                     })
 
-        # Continue conversation with tool results
         messages.append({"role": "assistant", "content": assistant_content})
         messages.append({"role": "user", "content": tool_results})
 
+        # Subsequent calls — no thinking needed
         response = client.messages.create(
             model=MODEL,
-            max_tokens=2048,
+            max_tokens=4096,
             system=SYSTEM_PROMPT,
             messages=messages,
             tools=tools,
         )
         _track_tokens(response)
 
-    # Extract final text response
-    text_parts = [b.text for b in response.content if hasattr(b, "text")]
+    # Extract final text response (skip thinking blocks)
+    text_parts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
     return "\n".join(text_parts) if text_parts else "Done."
 
 def _process_uploaded_files(files):
@@ -1126,6 +1184,7 @@ def sms_webhook():
 def capabilities():
     """Report all connected tools and services."""
     return jsonify({
+        "model": MODEL,
         "google": GOOGLE_AVAILABLE,
         "github": GITHUB_AVAILABLE,
         "sms_outbound": TWILIO_AVAILABLE,
@@ -1133,7 +1192,11 @@ def capabilities():
         "claude_dispatch": DISPATCH_AVAILABLE,
         "tts_xai": bool(XAI_API_KEY),
         "tts_elevenlabs": bool(ELEVENLABS_API_KEY),
+        "image_gen": bool(XAI_API_KEY),
         "web_search": True,
+        "extended_thinking": True,
+        "persistent_memory": True,
+        "mcp_tools": len(MCP_TOOLS),
     })
 
 
