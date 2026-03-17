@@ -187,6 +187,8 @@ class LiveKitSessionRequest(BaseModel):
 async def serve_platform_ui():
     """Serve the Agent Factory Platform UI."""
     html_path = os.path.join(os.path.dirname(__file__), "web", "platform.html")
+    if not os.path.exists(html_path):
+        html_path = os.path.join(os.path.dirname(__file__), "web", "index.html")
     if os.path.exists(html_path):
         with open(html_path, "r") as f:
             return f.read()
