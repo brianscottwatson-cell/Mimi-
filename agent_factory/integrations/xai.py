@@ -188,13 +188,94 @@ class GrokVideoGen:
 
 class GrokAudio:
     """
-    Placeholder for Grok native audio (TTS / dialogue / music / effects).
-    Future-proofed for upcoming xAI audio capabilities.
+    xAI Grok Text-to-Speech (TTS) API.
+    Uses the /v1/audio/speech endpoint — OpenAI-compatible.
+    Default voice: Eve (energetic, upbeat).
+    Available voices: ara, eve, rex, sal, leo
     """
 
-    def synthesize(self, text: str, voice: str = "default") -> Dict[str, Any]:
+    VOICES = ["ara", "eve", "rex", "sal", "leo"]
+    DEFAULT_VOICE = "eve"
+
+    def __init__(self, model: str = "grok-tts-aurora"):
+        self.model = model
+
+    def synthesize(
+        self,
+        text: str,
+        voice: str = DEFAULT_VOICE,
+        response_format: str = "mp3",
+        speed: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        Convert text to speech using Eve (or any xAI voice).
+
+        Returns:
+            {"audio_bytes": bytes, "format": str} on success
+            {"error": str} on failure
+        """
+        client = _get_client()
+        voice = voice.lower()
+        if voice not in self.VOICES:
+            voice = self.DEFAULT_VOICE
+        try:
+            response = client.audio.speech.create(
+                model=self.model,
+                input=text,
+                voice=voice,
+                response_format=response_format,
+                speed=speed,
+            )
+            audio_data = response.content
+            return {
+                "audio_bytes": audio_data,
+                "format": response_format,
+                "voice": voice,
+                "model": self.model,
+                "text_length": len(text),
+            }
+        except Exception as e:
+            return {"error": str(e), "model": self.model}
+
+
+class GrokVoiceAgent:
+    """
+    xAI Grok Real-Time Voice Agent API.
+    WebSocket speech-to-speech — OpenAI Realtime compatible.
+    Endpoint: wss://api.x.ai/v1/realtime
+    Default voice: Eve. Pricing: $0.05/minute.
+    """
+
+    REALTIME_URL = "wss://api.x.ai/v1/realtime"
+    DEFAULT_VOICE = "Eve"
+
+    def get_session_config(
+        self,
+        voice: str = DEFAULT_VOICE,
+        system_prompt: str = "You are Mimi, a helpful AI assistant.",
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        config: Dict[str, Any] = {
+            "model": "grok-2",
+            "voice": voice,
+            "instructions": system_prompt,
+            "modalities": ["audio", "text"],
+            "input_audio_format": "pcm16",
+            "output_audio_format": "pcm16",
+            "turn_detection": {
+                "type": "server_vad",
+                "threshold": 0.5,
+                "prefix_padding_ms": 300,
+                "silence_duration_ms": 500,
+            },
+        }
+        if tools:
+            config["tools"] = tools
+        return config
+
+    def get_connection_headers(self) -> Dict[str, str]:
+        key = os.getenv("XAI_API_KEY", "")
         return {
-            "status": "pending",
-            "message": "Grok native audio API integration pending release.",
-            "text": text,
+            "Authorization": f"Bearer {key}",
+            "OpenAI-Beta": "realtime=v1",
         }

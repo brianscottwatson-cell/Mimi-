@@ -154,6 +154,13 @@ class GrokSearchRequest(BaseModel):
     model: str = "grok-2"
 
 
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "eve"
+    response_format: str = "mp3"
+    speed: float = 1.0
+
+
 class WebhookRegisterRequest(BaseModel):
     url: str
     events: List[str]
@@ -462,6 +469,40 @@ async def grok_vision(
     if "error" in result:
         raise HTTPException(500, result["error"])
     return result
+
+
+@app.post("/api/grok/tts")
+async def grok_tts(req: TTSRequest):
+    """
+    Text-to-Speech via xAI Grok — returns audio/mpeg (or chosen format).
+    Default voice: Eve (energetic, upbeat). Voices: ara, eve, rex, sal, leo.
+    """
+    from agent_factory.integrations.xai import GrokAudio
+    tts = GrokAudio()
+    result = tts.synthesize(req.text, voice=req.voice, response_format=req.response_format, speed=req.speed)
+    if "error" in result:
+        raise HTTPException(500, result["error"])
+    fmt_to_mime = {"mp3": "audio/mpeg", "wav": "audio/wav", "opus": "audio/opus", "pcm": "audio/pcm"}
+    mime = fmt_to_mime.get(req.response_format, "audio/mpeg")
+    return Response(content=result["audio_bytes"], media_type=mime)
+
+
+@app.get("/api/grok/voice/session-config")
+async def grok_voice_session_config(
+    voice: str = "Eve",
+    system_prompt: str = "You are Mimi, a helpful AI assistant.",
+):
+    """
+    Returns WebSocket session config for xAI Grok Voice Agent (Eve).
+    The browser connects directly to wss://api.x.ai/v1/realtime using this config.
+    """
+    from agent_factory.integrations.xai import GrokVoiceAgent
+    agent = GrokVoiceAgent()
+    return {
+        "websocket_url": GrokVoiceAgent.REALTIME_URL,
+        "session": agent.get_session_config(voice=voice, system_prompt=system_prompt),
+        "headers": agent.get_connection_headers(),
+    }
 
 
 # ------------------------------------------------------------------ #
