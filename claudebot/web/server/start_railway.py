@@ -14,6 +14,12 @@ import time
 import traceback
 import threading
 
+# Ensure the server directory is on sys.path so relative imports work
+# regardless of the working directory
+_server_dir = os.path.dirname(os.path.abspath(__file__))
+if _server_dir not in sys.path:
+    sys.path.insert(0, _server_dir)
+
 if __name__ == "__main__":
     print("[start_railway] v2 — 2026-02-23", flush=True)
     port = int(os.environ.get("PORT", 8000))
