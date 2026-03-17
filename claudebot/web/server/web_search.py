@@ -5,7 +5,7 @@ Includes dedicated Reddit and X/Twitter search tools.
 """
 
 import httpx
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 
 
 def web_search(query, max_results=5):
