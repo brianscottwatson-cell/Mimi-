@@ -1,1 +1,1 @@
-web: cd claudebot/web/server && python start_railway.py
+web: python claudebot/web/server/start_railway.py
