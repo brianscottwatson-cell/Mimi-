@@ -18,7 +18,7 @@ class BaseAgent:
         role: str,
         system_prompt: str,
         model_provider: str = "anthropic",
-        model_name: str = "claude-sonnet-4-5-20250929",
+        model_name: str = "claude-3-5-sonnet-20241022",
         tools_enabled: bool = True,
         max_tokens: int = 4000
     ):

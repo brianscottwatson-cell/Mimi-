@@ -10,10 +10,10 @@ PROVIDERS = {
     "anthropic": {
         "models": [
             "claude-opus-4-6",
-            "claude-sonnet-4-6",
+            "claude-3-5-sonnet-20241022",
             "claude-haiku-4-5-20251001",
         ],
-        "default": "claude-sonnet-4-6",
+        "default": "claude-3-5-sonnet-20241022",
         "env_key": "ANTHROPIC_API_KEY",
         "description": "Anthropic Claude — state-of-the-art reasoning and instruction following",
     },
