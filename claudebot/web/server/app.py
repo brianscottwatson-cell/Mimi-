@@ -1012,6 +1012,7 @@ def _chat_with_tools(messages):
     _track_tokens(response)
 
     # Handle tool use loop (max 5 rounds to prevent infinite loops)
+    tools_executed = []
     for _ in range(5):
         if response.stop_reason != "tool_use":
             break
@@ -1032,6 +1033,7 @@ def _chat_with_tools(messages):
                             "tool_use_id": block.id,
                             "content": _json.dumps(result, default=str, ensure_ascii=False),
                         })
+                        tools_executed.append({"tool": tool_name, "status": "ok", "result": result})
                     except Exception as e:
                         tool_results.append({
                             "type": "tool_result",
@@ -1039,6 +1041,7 @@ def _chat_with_tools(messages):
                             "content": f"Error: {e}",
                             "is_error": True,
                         })
+                        tools_executed.append({"tool": tool_name, "status": "error", "error": str(e)})
                 else:
                     tool_results.append({
                         "type": "tool_result",
@@ -1046,6 +1049,7 @@ def _chat_with_tools(messages):
                         "content": f"Tool '{tool_name}' not available.",
                         "is_error": True,
                     })
+                    tools_executed.append({"tool": tool_name, "status": "error", "error": "not available"})
 
         messages.append({"role": "assistant", "content": assistant_content})
         messages.append({"role": "user", "content": tool_results})
@@ -1062,7 +1066,26 @@ def _chat_with_tools(messages):
 
     # Extract final text response (skip thinking blocks)
     text_parts = [b.text for b in response.content if hasattr(b, "text") and b.type == "text"]
-    return "\n".join(text_parts) if text_parts else "Done."
+    if text_parts:
+        return "\n".join(text_parts)
+
+    # If Claude returned no text but tools were executed, ask Claude to summarize
+    if tools_executed:
+        summary_results = _json.dumps(tools_executed, default=str, ensure_ascii=False)
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": f"You executed tools but didn't provide a summary. Here are the results: {summary_results}\n\nPlease provide a brief, friendly summary of what you did and the results."})
+        summary_response = client.messages.create(
+            model=MODEL,
+            max_tokens=1024,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+        )
+        _track_tokens(summary_response)
+        summary_parts = [b.text for b in summary_response.content if hasattr(b, "text") and b.type == "text"]
+        if summary_parts:
+            return "\n".join(summary_parts)
+
+    return "I tried to process your request but wasn't able to complete it. Could you try again or rephrase?"
 
 def _process_uploaded_files(files):
     """Process uploaded files into Claude API content blocks."""
