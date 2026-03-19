@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw Agency - AI-Powered Marketing & Development Services</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0d1a 50%, #0d1a1a 100%);
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            padding: 2rem 0;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff0080, #00ff80, #0080ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: #ffffff;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .nav-links a:hover {
+            color: #ff0080;
+        }
+        
+        .hero {
+            padding: 6rem 0;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(255,0,128,0.1) 0%, transparent 70%);
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(45deg, #ff0080, #00ff80);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            color: #cccccc;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: linear-gradient(45deg, #ff0080, #0080ff);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255,0,128,0.3);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255,0,128,0.5);
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+        
+        .service-card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,0,128,0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255,0,128,0.5);
+        }
+        
+        .service-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #00ff80;
+        }
+        
+        .service-price {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff0080;
+            margin: 1rem 0;
+        }
+        
+        .service-features {
+            list-style: none;
+            margin: 1rem 0;
+        }
+        
+        .service-features li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .service-features li:before {
+            content: "✓ ";
+            color: #00ff80;
+            font-weight: bold;
+        }
+        
+        .case-study {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            margin: 4rem 0;
+            border-left: 4px solid #00ff80;
+        }
+        
+        .case-study h3 {
+            color: #00ff80;
+            margin-bottom: 1rem;
+        }
+        
+        footer {
+            padding: 3rem 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            color: #cccccc;
+        }
+        
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,0,128,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,0,128,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .services-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">OpenClaw</div>
+                <nav>
+                    <ul class="nav-links">
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#case-studies">Case Studies</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+    
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>AI-Powered Marketing That Actually Works</h1>
+                <p>Get comprehensive marketing strategies, competitive intelligence, and content creation delivered in 48 hours. No fluff. No delays. Just results.</p>
+                <a href="#services" class="cta-button">See Our Services</a>
+            </div>
+        </section>
+        
+        <section id="services" class="container">
+            <h2 style="text-align: center; margin-bottom: 3rem; font-size: 2.5rem; color: #00ff80;">Our Services</h2>
+            
+            <div class="services-grid">
+                <div class="service-card">
+                    <h3>48-Hour Marketing Strategy</h3>
+                    <div class="service-price">$1,497</div>
+                    <p>Complete marketing blueprint with competitor analysis, SEO strategy, and implementation roadmap.</p>
+                    <ul class="service-features">
+                        <li>Full competitive landscape analysis</li>
+                        <li>SEO keyword research & strategy</li>
+                        <li>Content calendar & messaging</li>
+                        <li>Multi-channel campaign plan</li>
+                        <li>ROI projections & budget allocation</li>
+                        <li>48-hour delivery guarantee</li>
+                    </ul>
+                    <a href="#contact" class="cta-button" style="margin-top: 1rem; display: block; text-align: center;">Get Started</a>
+                </div>
+                
+                <div class="service-card">
+                    <h3>Competitive Intelligence Report</h3>
+                    <div class="service-price">$797</div>
+                    <p>Deep-dive analysis of your competition using AI-powered research and real customer insights.</p>
+                    <ul class="service-features">
+                        <li>Competitor pricing & positioning</li>
+                        <li>Social media sentiment analysis</li>
+                        <li>Reddit/Twitter deep research</li>
+                        <li>Market opportunity mapping</li>
+                        <li>Actionable recommendations</li>
+                        <li>Executive summary + full report</li>
+                    </ul>
+                    <a href="#contact" class="cta-button" style="margin-top: 1rem; display: block; text-align: center;">Get Started</a>
+                </div>
+                
+                <div class="service-card">
+                    <h3>Content + Design Bundle</h3>
+                    <div class="service-price">$597</div>
+                    <p>Professional content creation with visual assets, optimized for your target audience.</p>
+                    <ul class="service-features">
+                        <li>5 blog posts or landing pages</li>
+                        <li>Custom visual designs</li>
+                        <li>Social media content package</li>
+                        <li>Email sequence templates</li>
+                        <li>SEO optimization included</li>
+                        <li>Brand voice consistency</li>
+                    </ul>
+                    <a href="#contact" class="cta-button" style="margin-top: 1rem; display: block; text-align: center;">Get Started</a>
+                </div>
+                
+                <div class="service-card">
+                    <h3>Website Audit + Quick Fixes</h3>
+                    <div class="service-price">$497</div>
+                    <p>Comprehensive website analysis with immediate improvements and optimization recommendations.</p>
+                    <ul class="service-features">
+                        <li>Technical SEO audit</li>
+                        <li>Performance optimization</li>
+                        <li>Conversion rate analysis</li>
+                        <li>Immediate fixes implemented</li>
+                        <li>Priority improvement roadmap</li>
+                        <li>Before/after reporting</li>
+                    </ul>
+                    <a href="#contact" class="cta-button" style="margin-top: 1rem; display: block; text-align: center;">Get Started</a>
+                </div>
+            </div>
+        </section>
+        
+        <section id="case-studies" class="container">
+            <h2 style="text-align: center; margin-bottom: 3rem; font-size: 2.5rem; color: #00ff80;">Recent Case Study</h2>
+            
+            <div class="case-study">
+                <h3>Colorado Hot Tub - Mountain Marketing Strategy</h3>
+                <p><strong>Challenge:</strong> Local hot tub retailer needed to dominate SEO in mountain communities from Evergreen to Grand Lake.</p>
+                <p><strong>Solution:</strong> Comprehensive marketing strategy focusing on altitude-specific expertise, local SEO domination, and seasonal content strategy.</p>
+                <p><strong>Deliverables:</strong></p>
+                <ul style="margin: 1rem 0; list-style: none;">
+                    <li>✓ Complete competitive analysis of Denver metro hot tub market</li>
+                    <li>✓ Local SEO strategy with service area targeting</li>
+                    <li>✓ Content calendar focused on mountain living</li>
+                    <li>✓ Multi-agent team coordination (Research + Content + Design + Strategy)</li>
+                    <li>✓ Implementation roadmap with ROI projections</li>
+                </ul>
+                <p><strong>Timeline:</strong> 24-hour delivery from brief to complete strategy</p>
+            </div>
+        </section>
+        
+        <section id="contact" class="container" style="padding: 4rem 0;">
+            <h2 style="text-align: center; margin-bottom: 3rem; font-size: 2.5rem; color: #00ff80;">Get Started Today</h2>
+            
+            <div style="max-width: 600px; margin: 0 auto; text-align: center;">
+                <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #cccccc;">
+                    Ready to accelerate your marketing? We deliver results in 48 hours or less.
+                </p>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                    <p style="font-size: 1.1rem; margin-bottom: 1rem;">Contact us to get started:</p>
+                    <p style="color: #00ff80; font-weight: bold; margin-bottom: 0.5rem;">Email: brian@openclaw.ai</p>
+                    <p style="color: #00ff80; font-weight: bold;">Text: +1 (970) 201-1236</p>
+                </div>
+                
+                <p style="color: #888; font-style: italic;">
+                    Payment processing available via Stripe (setup in progress)
+                </p>
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 OpenClaw Agency. Powered by AI. Delivered by Experts.</p>
+        </div>
+    </footer>
+</body>
+</html>
